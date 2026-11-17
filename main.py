@@ -134,6 +134,7 @@ async def get_status(telegram_id: int, username: Optional[str] = None):
         birth_date = dt_date.fromisoformat(DEFAULT_BIRTH_DATE)
 
     age_info = norms.calculate_age_info(birth_date)
+    expert_advice = norms.get_age_advice(birth_date)
 
     next_sleep_info = None
     if not active_sleep:
@@ -156,6 +157,7 @@ async def get_status(telegram_id: int, username: Optional[str] = None):
         "last_completed_sleep": last_completed,
         "next_sleep": next_sleep_info,
         "family": family_info,
+        "expert_advice": expert_advice,
         "baby": {
             "name": family.get("baby_name", DEFAULT_BABY_NAME),
             "birth_date": family.get("baby_birth_date", DEFAULT_BIRTH_DATE),
@@ -279,6 +281,105 @@ async def api_get_daily_stats(family_id: int, date: Optional[str] = Query(None, 
         now=datetime.now()
     )
     return summary
+
+@app.get("/api/advice")
+async def api_get_advice(family_id: int):
+    """Возвращает экспертные подсказки и советы по текущему возрасту малыша."""
+    family_info = await db.get_family_info(family_id)
+    if not family_info:
+        raise HTTPException(status_code=404, detail="Семья не найдена")
+    try:
+        birth_date = dt_date.fromisoformat(family_info["baby_birth_date"])
+    except Exception:
+        birth_date = dt_date.fromisoformat(DEFAULT_BIRTH_DATE)
+    advice = norms.get_age_advice(birth_date)
+    return advice
+
+@app.get("/api/stats/weekly")
+async def api_get_weekly_stats(family_id: int, end_date: Optional[str] = Query(None)):
+    """Возвращает недельную статистику (7 дней), динамику и график сна."""
+    try:
+        end_day = dt_date.fromisoformat(end_date) if end_date else datetime.now().date()
+    except Exception:
+        end_day = datetime.now().date()
+
+    family_info = await db.get_family_info(family_id)
+    if not family_info:
+        raise HTTPException(status_code=404, detail="Семья не найдена")
+
+    try:
+        birth_date = dt_date.fromisoformat(family_info["baby_birth_date"])
+    except Exception:
+        birth_date = dt_date.fromisoformat(DEFAULT_BIRTH_DATE)
+
+    # Собираем данные за каждый из 7 дней
+    daily_summaries = []
+    now = datetime.now()
+    for i in range(6, -1, -1):
+        target_day = end_day - timedelta(days=i)
+        sleeps = await db.get_sleeps_for_day(family_id, target_day)
+        summary = analytics.calculate_daily_summary(
+            sleeps=sleeps,
+            target_date=target_day,
+            birth_date=birth_date,
+            now=now
+        )
+        daily_summaries.append(summary)
+
+    weekly = analytics.calculate_weekly_summary(
+        daily_summaries=daily_summaries,
+        end_date=end_day,
+        birth_date=birth_date
+    )
+    return weekly
+
+@app.get("/api/export/csv")
+async def api_export_csv(family_id: int, days: int = 14):
+    """Экспорт истории сна в CSV для врача/педиатра."""
+    from fastapi.responses import Response
+    end_day = datetime.now().date()
+    start_day = end_day - timedelta(days=days)
+    sleeps = await db.get_all_sleeps_for_period(family_id, start_day, end_day)
+    csv_content = analytics.generate_csv_data(sleeps)
+    
+    return Response(
+        content=csv_content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="sleep_report_{end_day.isoformat()}.csv"'
+        }
+    )
+
+@app.get("/api/export/text")
+async def api_export_text(family_id: int):
+    """Текстовая выжимка для пересылки педиатру в Telegram."""
+    end_day = datetime.now().date()
+    family_info = await db.get_family_info(family_id)
+    if not family_info:
+        raise HTTPException(status_code=404, detail="Семья не найдена")
+
+    try:
+        birth_date = dt_date.fromisoformat(family_info["baby_birth_date"])
+    except Exception:
+        birth_date = dt_date.fromisoformat(DEFAULT_BIRTH_DATE)
+
+    age_info = norms.calculate_age_info(birth_date, end_day)
+
+    daily_summaries = []
+    now = datetime.now()
+    for i in range(6, -1, -1):
+        target_day = end_day - timedelta(days=i)
+        sleeps = await db.get_sleeps_for_day(family_id, target_day)
+        summary = analytics.calculate_daily_summary(sleeps, target_day, birth_date, now)
+        daily_summaries.append(summary)
+
+    weekly = analytics.calculate_weekly_summary(daily_summaries, end_day, birth_date)
+    text_report = analytics.generate_pediatric_text_report(
+        baby_name=family_info.get("baby_name", "Сева"),
+        age_text=age_info["age_text"],
+        weekly_summary=weekly
+    )
+    return {"report_text": text_report}
 
 @app.put("/api/baby")
 async def api_update_baby(req: UpdateBabyRequest):

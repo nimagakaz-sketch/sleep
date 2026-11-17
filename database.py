@@ -431,6 +431,30 @@ async def get_sleeps_for_day(family_id: int, target_date: date) -> List[Dict[str
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
 
+async def get_all_sleeps_for_period(family_id: int, start_date: date, end_date: date) -> List[Dict[str, Any]]:
+    """Получает все сны за период между датами (для экспорта и недельной аналитики)."""
+    start_dt = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0).isoformat()
+    end_dt = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59).isoformat()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT s.*, 
+                   u1.first_name as started_by_name,
+                   u2.first_name as ended_by_name
+            FROM sleep_sessions s
+            LEFT JOIN users u1 ON s.started_by_user_id = u1.telegram_id
+            LEFT JOIN users u2 ON s.ended_by_user_id = u2.telegram_id
+            WHERE s.family_id = ?
+              AND s.start_time >= ? AND s.start_time <= ?
+            ORDER BY s.start_time ASC
+            """,
+            (family_id, start_dt, end_dt)
+        ) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
 async def get_all_families_for_reminders() -> List[Dict[str, Any]]:
     """Получает список семей с включенными уведомлениями."""
     async with aiosqlite.connect(DB_PATH) as db:

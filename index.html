@@ -65,11 +65,6 @@
       overflow: hidden;
     }
 
-    /* Subtle hairline separators */
-    .apple-divider {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    }
-
     /* Scroll container padding above floating dock */
     .content-scroll {
       padding-bottom: calc(190 * var(--u) + var(--bot) + 48px);
@@ -109,7 +104,6 @@
       border: 0;
       box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.45);
     }
-    /* Кантик: ярче на ровных верхе и низе */
     .matte::before {
       content: "";
       position: absolute;
@@ -243,7 +237,7 @@
       background: rgba(255, 255, 255, 0.15);
     }
 
-    /* Primary Sleep Action Pill (Apple Blue & Amber states) */
+    /* Action Buttons */
     .btn-action-sleep {
       background: linear-gradient(180deg, rgba(94, 92, 230, 0.9) 0%, rgba(79, 70, 229, 0.95) 100%);
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 10px 28px rgba(79, 70, 229, 0.4);
@@ -253,13 +247,12 @@
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 10px 28px rgba(245, 158, 11, 0.4);
     }
 
-    /* Tabular Nums for perfect stopwatch digits */
+    /* Tabular Nums */
     .tabular {
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.03em;
     }
 
-    /* Fade transition */
     .view-section {
       transition: opacity 0.25s ease, transform 0.25s ease;
     }
@@ -287,7 +280,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="switchTabByIndex(2)" class="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
+      <button onclick="setTabBarIndex(2)" class="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
         <i class="ph ph-gear text-lg"></i>
       </button>
     </div>
@@ -297,7 +290,7 @@
   <main class="relative z-10 flex-1 overflow-y-auto px-4 pt-4 content-scroll space-y-4">
 
     <!-- ======================================================================
-         TAB 0: ТРЕКЕР (HERO STOPWATCH & WAKE WINDOW)
+         TAB 0: ТРЕКЕР (HERO STOPWATCH & WAKE WINDOW & EXPERT ADVICE)
          ====================================================================== -->
     <section id="tab-home" class="view-section space-y-4">
       
@@ -364,7 +357,7 @@
       <div class="apple-card p-4 space-y-3">
         <div class="flex items-center justify-between px-1">
           <span class="text-[12px] font-semibold uppercase tracking-wider text-white/45">Сегодня</span>
-          <button onclick="switchTabByIndex(1)" class="text-[13px] font-medium text-blue-400 flex items-center gap-0.5 hover:text-blue-300 transition">
+          <button onclick="setTabBarIndex(1)" class="text-[13px] font-medium text-blue-400 flex items-center gap-0.5 hover:text-blue-300 transition">
             Подробно <i class="ph ph-caret-right"></i>
           </button>
         </div>
@@ -385,6 +378,44 @@
         </div>
       </div>
 
+      <!-- ======================================================================
+           НОВЫЙ БЛОК: СОВЕТЫ ЭКСПЕРТОВ (ПОДСТРАИВАЕТСЯ ПОД ВОЗРАСТ)
+           ====================================================================== -->
+      <div class="apple-card p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center text-sm shadow-sm">
+              <i class="ph ph-sparkle"></i>
+            </div>
+            <div>
+              <div class="text-[14px] font-bold text-white tracking-tight" id="adviceStageTitle">Советы экспертов</div>
+              <div class="text-[11px] text-white/40 font-normal" id="adviceAgeSubtitle">Возрастной этап: 2–3 месяца</div>
+            </div>
+          </div>
+          <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/[0.08] text-white/60 border border-white/10">Норма</span>
+        </div>
+
+        <!-- Inner Segmented Buttons: Усталость | Ритуал | Скачки -->
+        <div class="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06] text-center text-[12px]">
+          <button id="advTabSigns" onclick="switchAdviceTab('signs')" class="py-1.5 rounded-xl bg-white/15 text-white font-semibold transition">Усталость</button>
+          <button id="advTabRitual" onclick="switchAdviceTab('ritual')" class="py-1.5 rounded-xl text-white/50 hover:text-white font-medium transition">Ритуал</button>
+          <button id="advTabGrowth" onclick="switchAdviceTab('growth')" class="py-1.5 rounded-xl text-white/50 hover:text-white font-medium transition">Скачки</button>
+        </div>
+
+        <!-- Dynamic Content Box -->
+        <div id="adviceContentBox" class="text-[13px] text-white/75 leading-relaxed space-y-2.5 font-normal">
+          <!-- Filled by JS -->
+        </div>
+
+        <!-- Golden Rule Quote Banner -->
+        <div class="p-3 rounded-2xl bg-blue-500/[0.08] border border-blue-500/20 flex items-start gap-2.5">
+          <i class="ph ph-lightbulb text-blue-400 text-base flex-shrink-0 mt-0.5"></i>
+          <p id="adviceGoldenRule" class="text-[12px] text-blue-200/85 leading-normal">
+            Золотое правило: лучше уложить на 10 минут раньше нормы, чем на 10 минут позже.
+          </p>
+        </div>
+      </div>
+
       <!-- RECENT SLEEPS TODAY -->
       <div class="space-y-2">
         <div class="flex items-center justify-between px-2">
@@ -401,98 +432,220 @@
     </section>
 
     <!-- ======================================================================
-         TAB 1: СВОДКА (DAILY STATS & 24H TIMELINE)
+         TAB 1: СВОДКА (DAILY STATS & WEEKLY 7-DAY DYNAMICS & EXPORT)
          ====================================================================== -->
     <section id="tab-stats" class="view-section space-y-4 hidden">
       
-      <!-- DATE SELECTOR (APPLE STYLE) -->
-      <div class="apple-card px-3 py-2 flex items-center justify-between">
-        <button onclick="changeStatsDate(-1)" class="w-9 h-9 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
-          <i class="ph ph-caret-left text-lg"></i>
-        </button>
-        <div class="text-center cursor-pointer px-4 py-1 rounded-xl hover:bg-white/[0.05] transition" onclick="openDatePicker()">
-          <div id="statsDateLabel" class="font-semibold text-[15px] tracking-tight">Сегодня, 18 ноя</div>
-          <div class="text-[10px] text-white/40 font-medium">нажмите для выбора даты</div>
-          <input type="date" id="hiddenDateInput" class="hidden" onchange="onDateSelected(this.value)">
+      <!-- TOP TOGGLE: [ ДЕНЬ | НЕДЕЛЯ ] + ЭКСПОРТ -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="grid grid-cols-2 p-1 rounded-2xl bg-white/[0.06] border border-white/10 w-full max-w-[200px] text-center text-[13px] font-semibold">
+          <button id="viewModeDayBtn" onclick="switchStatsViewMode('day')" class="py-1.5 rounded-xl bg-white/15 text-white shadow-sm transition">День</button>
+          <button id="viewModeWeekBtn" onclick="switchStatsViewMode('week')" class="py-1.5 rounded-xl text-white/50 hover:text-white transition">Неделя</button>
         </div>
-        <button id="statsNextDayBtn" onclick="changeStatsDate(1)" class="w-9 h-9 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
-          <i class="ph ph-caret-right text-lg"></i>
+
+        <button onclick="openExportModal()" class="px-3.5 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[12px] font-semibold text-blue-400 flex items-center gap-1.5 active:scale-95 transition">
+          <i class="ph ph-export text-base"></i> Экспорт
         </button>
       </div>
 
-      <!-- 4 APPLE HEALTH METRIC CARDS -->
-      <div class="grid grid-cols-2 gap-3">
-        <div class="apple-card p-4 space-y-1">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Всего сна</div>
-          <div id="statsTotalSleep" class="text-2xl font-bold text-white tabular tracking-tight">0ч 0м</div>
-          <div id="statsNormCompare" class="text-[11px] text-white/40">норма: 14-16ч</div>
-        </div>
-
-        <div class="apple-card p-4 space-y-1">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ср. бодрствование</div>
-          <div id="statsAvgWb" class="text-2xl font-bold text-white tabular tracking-tight">0ч 0м</div>
-          <div id="statsNormWb" class="text-[11px] text-white/40">норма: 1ч 15м - 1ч 30м</div>
-        </div>
-
-        <div class="apple-card p-4 space-y-1">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Дневной сон</div>
-          <div id="statsDaySleep" class="text-2xl font-bold text-sky-400 tabular tracking-tight">0ч 0м</div>
-          <div id="statsDayNapsCount" class="text-[11px] text-white/40">0 снов</div>
-        </div>
-
-        <div class="apple-card p-4 space-y-1">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ночной сон</div>
-          <div id="statsNightSleep" class="text-2xl font-bold text-indigo-400 tabular tracking-tight">0ч 0м</div>
-          <div class="text-[11px] text-white/40">основной отдых</div>
-        </div>
-      </div>
-
-      <!-- 24-HOUR TIMELINE BAR -->
-      <div class="apple-card p-4 space-y-3">
-        <div class="flex items-center justify-between text-[12px] font-semibold uppercase tracking-wider text-white/45">
-          <span>Шкала суток 24ч</span>
-          <span class="text-[11px] font-normal lowercase text-white/40">00:00 — 24:00</span>
-        </div>
-
-        <!-- Timeline Capsule -->
-        <div id="timelineContainer" class="w-full bg-white/[0.05] h-8 rounded-full relative overflow-hidden flex border border-white/10 shadow-inner">
-          <!-- Dynamically injected timeline blocks -->
-        </div>
-
-        <!-- Clean Timeline Markers -->
-        <div class="flex justify-between text-[10px] text-white/35 font-mono px-1">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-          <span>24:00</span>
-        </div>
-
-        <!-- Muted Legend -->
-        <div class="flex items-center justify-center gap-5 text-[11px] text-white/50 pt-1">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Ночной сон
+      <!-- ===================================================
+           ПОДРАЗДЕЛ 1: РЕЖИМ «ДЕНЬ»
+           =================================================== -->
+      <div id="statsDayContainer" class="space-y-4">
+        
+        <!-- DATE SELECTOR (APPLE STYLE) -->
+        <div class="apple-card px-3 py-2 flex items-center justify-between">
+          <button onclick="changeStatsDate(-1)" class="w-9 h-9 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
+            <i class="ph ph-caret-left text-lg"></i>
+          </button>
+          <div class="text-center cursor-pointer px-4 py-1 rounded-xl hover:bg-white/[0.05] transition" onclick="openDatePicker()">
+            <div id="statsDateLabel" class="font-semibold text-[15px] tracking-tight">Сегодня, 18 ноя</div>
+            <div class="text-[10px] text-white/40 font-medium">нажмите для выбора даты</div>
+            <input type="date" id="hiddenDateInput" class="hidden" onchange="onDateSelected(this.value)">
           </div>
-          <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Дневной сон
-          </div>
-          <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full bg-white/20"></span> Бодрствование
-          </div>
-        </div>
-      </div>
-
-      <!-- FULL SLEEP SESSIONS LIST -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between px-2">
-          <span class="text-[12px] font-semibold uppercase tracking-wider text-white/45">Список интервалов</span>
-          <button onclick="openManualSleepModal()" class="text-[13px] text-blue-400 font-medium flex items-center gap-1 hover:text-blue-300">
-            <i class="ph ph-plus-circle text-base"></i> Добавить
+          <button id="statsNextDayBtn" onclick="changeStatsDate(1)" class="w-9 h-9 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
+            <i class="ph ph-caret-right text-lg"></i>
           </button>
         </div>
-        <div id="statsSleepList" class="space-y-2">
-          <!-- Dynamic session items -->
+
+        <!-- 4 APPLE HEALTH METRIC CARDS -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Всего сна</div>
+            <div id="statsTotalSleep" class="text-2xl font-bold text-white tabular tracking-tight">0ч 0м</div>
+            <div id="statsNormCompare" class="text-[11px] text-white/40">норма: 14-16ч</div>
+          </div>
+
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ср. бодрствование</div>
+            <div id="statsAvgWb" class="text-2xl font-bold text-white tabular tracking-tight">0ч 0м</div>
+            <div id="statsNormWb" class="text-[11px] text-white/40">норма: 1ч 15м - 1ч 30м</div>
+          </div>
+
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Дневной сон</div>
+            <div id="statsDaySleep" class="text-2xl font-bold text-sky-400 tabular tracking-tight">0ч 0м</div>
+            <div id="statsDayNapsCount" class="text-[11px] text-white/40">0 снов</div>
+          </div>
+
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ночной сон</div>
+            <div id="statsNightSleep" class="text-2xl font-bold text-indigo-400 tabular tracking-tight">0ч 0м</div>
+            <div class="text-[11px] text-white/40">основной отдых</div>
+          </div>
         </div>
+
+        <!-- 24-HOUR TIMELINE BAR -->
+        <div class="apple-card p-4 space-y-3">
+          <div class="flex items-center justify-between text-[12px] font-semibold uppercase tracking-wider text-white/45">
+            <span>Шкала суток 24ч</span>
+            <span class="text-[11px] font-normal lowercase text-white/40">00:00 — 24:00</span>
+          </div>
+
+          <!-- Timeline Capsule -->
+          <div id="timelineContainer" class="w-full bg-white/[0.05] h-8 rounded-full relative overflow-hidden flex border border-white/10 shadow-inner">
+            <!-- Dynamically injected timeline blocks -->
+          </div>
+
+          <!-- Clean Timeline Markers -->
+          <div class="flex justify-between text-[10px] text-white/35 font-mono px-1">
+            <span>00:00</span>
+            <span>06:00</span>
+            <span>12:00</span>
+            <span>18:00</span>
+            <span>24:00</span>
+          </div>
+
+          <!-- Muted Legend -->
+          <div class="flex items-center justify-center gap-5 text-[11px] text-white/50 pt-1">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Ночной сон
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Дневной сон
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-white/20"></span> Бодрствование
+            </div>
+          </div>
+        </div>
+
+        <!-- FULL SLEEP SESSIONS LIST -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between px-2">
+            <span class="text-[12px] font-semibold uppercase tracking-wider text-white/45">Список интервалов</span>
+            <button onclick="openManualSleepModal()" class="text-[13px] text-blue-400 font-medium flex items-center gap-1 hover:text-blue-300">
+              <i class="ph ph-plus-circle text-base"></i> Добавить
+            </button>
+          </div>
+          <div id="statsSleepList" class="space-y-2">
+            <!-- Dynamic session items -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===================================================
+           ПОДРАЗДЕЛ 2: РЕЖИМ «НЕДЕЛЯ» (ДИНАМИКА 7 ДНЕЙ)
+           =================================================== -->
+      <div id="statsWeekContainer" class="space-y-4 hidden">
+        
+        <!-- WEEKLY 7-DAY BAR CHART (APPLE HEALTH STYLE) -->
+        <div class="apple-card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Динамика сна за 7 дней</div>
+              <div class="text-[15px] font-bold text-white tracking-tight" id="weekPeriodLabel">12 ноя — 18 ноя</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[11px] text-white/40">Ориентир нормы</div>
+              <div class="text-[12px] font-semibold text-emerald-400">14–16ч в сутки</div>
+            </div>
+          </div>
+
+          <!-- Chart Visual Area (7 Stacked Bars) -->
+          <div class="pt-4 pb-1">
+            <div class="relative h-44 w-full flex items-end justify-between px-2 border-b border-white/10">
+              <!-- Norm Line Indicator (at 15h = 83% of 18h max) -->
+              <div class="absolute left-0 right-0 top-[17%] border-b border-dashed border-emerald-400/35 pointer-events-none flex justify-end">
+                <span class="text-[9px] text-emerald-400/60 font-mono -mt-3.5 pr-1">15ч норма</span>
+              </div>
+              <div class="absolute left-0 right-0 top-[50%] border-b border-white/[0.05] pointer-events-none flex justify-end">
+                <span class="text-[9px] text-white/20 font-mono -mt-3.5 pr-1">9ч</span>
+              </div>
+
+              <!-- 7 Bars rendered by JS -->
+              <div id="weekBarsContainer" class="w-full flex items-end justify-between h-full relative z-10">
+                <!-- Dynamically filled 7 bars -->
+              </div>
+            </div>
+
+            <!-- Weekday Labels -->
+            <div id="weekDaysLabelsContainer" class="flex justify-between text-[11px] text-white/40 font-semibold px-2 pt-2">
+              <!-- Dynamically filled Пн, Вт... -->
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div class="flex items-center justify-center gap-5 text-[11px] text-white/50 pt-1 border-t border-white/[0.06]">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Ночной сон
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Дневной сон
+            </div>
+          </div>
+        </div>
+
+        <!-- RHYTHM STATUS EVALUATION CARD -->
+        <div class="apple-card p-4 space-y-2">
+          <div class="flex items-center gap-2">
+            <span id="weekTrendDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span id="weekTrendTitle" class="text-[14px] font-bold text-white tracking-tight">Ритм стабилен</span>
+          </div>
+          <p id="weekTrendDesc" class="text-[13px] text-white/60 leading-relaxed font-normal">
+            Малыш высыпает суточную норму.
+          </p>
+        </div>
+
+        <!-- 4 WEEKLY AVERAGES CARDS -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ср. сон в сутки</div>
+            <div id="weekAvgTotal" class="text-2xl font-bold text-white tabular tracking-tight">--</div>
+            <div class="text-[11px] text-white/40" id="weekNormSleepHint">норма 14-16ч</div>
+          </div>
+
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ср. бодрствование</div>
+            <div id="weekAvgWb" class="text-2xl font-bold text-white tabular tracking-tight">--</div>
+            <div class="text-[11px] text-white/40" id="weekNormWbHint">норма 75-90 мин</div>
+          </div>
+
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ср. дневной сон</div>
+            <div id="weekAvgDay" class="text-2xl font-bold text-sky-400 tabular tracking-tight">--</div>
+            <div class="text-[11px] text-white/40" id="weekAvgNaps">в среднем -- снов</div>
+          </div>
+
+          <div class="apple-card p-4 space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Ср. ночной сон</div>
+            <div id="weekAvgNight" class="text-2xl font-bold text-indigo-400 tabular tracking-tight">--</div>
+            <div class="text-[11px] text-white/40">основной отдых</div>
+          </div>
+        </div>
+
+        <!-- EXPORT BANNER FOR PEDIATRICIAN -->
+        <div class="apple-card p-4 flex items-center justify-between gap-3">
+          <div>
+            <div class="text-[13px] font-bold text-white">Выгрузка для педиатра</div>
+            <div class="text-[11px] text-white/40">CSV файл или готовый текст в Telegram</div>
+          </div>
+          <button onclick="openExportModal()" class="px-4 py-2 rounded-full apple-glass-btn text-white text-[13px] font-semibold flex items-center gap-1.5 active:scale-95 transition">
+            <i class="ph ph-file-arrow-down"></i> Экспорт
+          </button>
+        </div>
+
       </div>
 
     </section>
@@ -709,6 +862,71 @@
     </div>
   </div>
 
+  <!-- MODAL: EXPORT DATA FOR PEDIATRICIAN -->
+  <div id="exportModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4 hidden">
+    <div class="apple-card w-full max-w-sm p-6 space-y-4 shadow-2xl">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto -mt-2 mb-2 sm:hidden"></div>
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-[17px] tracking-tight">Экспорт данных о сне</h3>
+        <button onclick="closeModal('exportModal')" class="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/60">
+          <i class="ph ph-x text-base"></i>
+        </button>
+      </div>
+
+      <p class="text-[13px] text-white/50 leading-relaxed">
+        Сформируйте отчет для педиатра или консультанта по сну для оценки динамики и режима:
+      </p>
+
+      <div class="space-y-2.5 pt-1">
+        <!-- Option 1: CSV Table Download -->
+        <a id="downloadCsvBtn" href="#" target="_blank" class="w-full p-3.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-between active:scale-[0.98] transition">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-lg">
+              <i class="ph ph-file-csv"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-semibold text-white text-[14px]">Таблица CSV (Excel)</div>
+              <div class="text-[11px] text-white/40">Полная история за 14 дней</div>
+            </div>
+          </div>
+          <i class="ph ph-download-simple text-white/60 text-lg"></i>
+        </a>
+
+        <!-- Option 2: Copy formatted medical summary -->
+        <button onclick="copyPediatricSummaryAction()" class="w-full p-3.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-between active:scale-[0.98] transition">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center justify-center text-lg">
+              <i class="ph ph-copy"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-semibold text-white text-[14px]">Скопировать отчет врача</div>
+              <div class="text-[11px] text-white/40">Сводка за неделю с нормами</div>
+            </div>
+          </div>
+          <i class="ph ph-clipboard-text text-white/60 text-lg"></i>
+        </button>
+
+        <!-- Option 3: Send via Telegram -->
+        <button onclick="sharePediatricReportTelegram()" class="w-full p-3.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-between active:scale-[0.98] transition">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center text-lg">
+              <i class="ph ph-paper-plane-tilt"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-semibold text-white text-[14px]">Отправить в Telegram</div>
+              <div class="text-[11px] text-white/40">Переслать доктору в чат</div>
+            </div>
+          </div>
+          <i class="ph ph-share-network text-white/60 text-lg"></i>
+        </button>
+      </div>
+
+      <button onclick="closeModal('exportModal')" class="w-full py-3 rounded-full text-white/40 text-[13px] font-medium hover:text-white/70 transition">
+        Закрыть
+      </button>
+    </div>
+  </div>
+
   <!-- ==========================================================================
        SCRIPTS: LIQUID GLASS PHYSICS + BABY TRACKER CLIENT
        ========================================================================== -->
@@ -810,7 +1028,7 @@
     glassEls.concat(bdEls).forEach(([el]) => ro.observe(el));
     rebuild();
 
-    // Таб-бар физика
+    // Tab bar physics
     const tabs = [...$('tabs').children], tabsEl = $('tabs');
     const clone = tabsEl.cloneNode(true);
     clone.removeAttribute('id');
@@ -946,7 +1164,6 @@
       bar.style.setProperty('--sy', syv.toFixed(4));
       bar.style.setProperty('--p', clamp(g, 0, 1).toFixed(3));
 
-      // Meniscus fusion with edge of bar
       {
         const U = bar.offsetWidth / 843, cxm = (Lc + Rc) / 2, r = 82.5 * syv, cy = 95, ex = r - cy;
         let d = '';
@@ -1004,7 +1221,6 @@
       } catch (e) {}
     }
 
-    // Hook tabbar into screen switching
     window.onTabChange = i => {
       switchTabByIndex(i);
     };
@@ -1022,7 +1238,11 @@
         }
       });
       if (index === 1) {
-        loadStats(selectedStatsDate);
+        if (statsViewMode === 'day') {
+          loadStats(selectedStatsDate);
+        } else {
+          loadWeeklyStats(selectedStatsDate);
+        }
       }
     }
 
@@ -1030,6 +1250,8 @@
     let currentUserName = tg?.initDataUnsafe?.user?.first_name || 'Родитель';
     let appStatus = null;
     let selectedStatsDate = new Date().toISOString().split('T')[0];
+    let statsViewMode = 'day'; // 'day' | 'week'
+    let currentAdviceTab = 'signs'; // 'signs' | 'ritual' | 'growth'
     let timerInterval = null;
 
     // Fetch Global Status
@@ -1039,6 +1261,8 @@
         if (!res.ok) throw new Error('Ошибка сети');
         appStatus = await res.json();
         renderStatus();
+        renderExpertAdvice();
+        updateExportLinks();
       } catch (err) {
         console.error('Fetch status error:', err);
       }
@@ -1050,7 +1274,6 @@
 
       const { is_sleeping, active_sleep, last_completed_sleep, next_sleep, baby, family } = appStatus;
 
-      // Baby details
       document.getElementById('babyHeaderName').innerText = baby.name || 'Сева';
       document.getElementById('babyAgeBadge').innerText = baby.age_text || '2 мес 7 дн';
       document.getElementById('familyCodeLabel').innerText = family.invite_code;
@@ -1073,7 +1296,6 @@
       const primaryText = document.getElementById('primaryActionText');
 
       if (is_sleeping && active_sleep) {
-        // Asleep
         dot.className = 'w-2 h-2 rounded-full bg-indigo-400 animate-pulse';
         statusTitle.innerText = active_sleep.is_night ? 'Ночной сон' : 'Дневной сон';
         const startDt = new Date(active_sleep.start_time);
@@ -1086,7 +1308,6 @@
         primaryIcon.className = 'ph ph-sun text-2xl';
         primaryText.innerText = 'Малыш проснулся';
       } else {
-        // Awake
         dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
         statusTitle.innerText = 'Бодрствует';
         icon.innerText = '☀️';
@@ -1188,10 +1409,111 @@
         if (res.ok) {
           haptic('success');
           await fetchStatus();
-          loadStats(selectedStatsDate);
+          if (statsViewMode === 'day') {
+            loadStats(selectedStatsDate);
+          } else {
+            loadWeeklyStats(selectedStatsDate);
+          }
         }
       } catch (err) {
         console.error('Action error:', err);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. ЭКСПЕРТНЫЕ СОВЕТЫ И ПОДСКАЗКИ
+    // --------------------------------------------------------------------------
+    function renderExpertAdvice() {
+      if (!appStatus || !appStatus.expert_advice) return;
+      const adv = appStatus.expert_advice;
+
+      document.getElementById('adviceStageTitle').innerText = adv.stage_title || 'Советы экспертов';
+      document.getElementById('adviceAgeSubtitle').innerText = adv.summary || `Возрастной этап: ${appStatus.baby.age_text}`;
+      document.getElementById('adviceGoldenRule').innerText = adv.golden_rule || 'Не допускайте перегула: укладывайте вовремя.';
+
+      renderAdviceTabContent();
+    }
+
+    function switchAdviceTab(tabKey) {
+      haptic('light');
+      currentAdviceTab = tabKey;
+
+      ['signs', 'ritual', 'growth'].forEach(k => {
+        const btn = document.getElementById(`advTab${k.charAt(0).toUpperCase() + k.slice(1)}`);
+        if (k === tabKey) {
+          btn.className = 'py-1.5 rounded-xl bg-white/15 text-white font-semibold transition';
+        } else {
+          btn.className = 'py-1.5 rounded-xl text-white/50 hover:text-white font-medium transition';
+        }
+      });
+
+      renderAdviceTabContent();
+    }
+
+    function renderAdviceTabContent() {
+      if (!appStatus || !appStatus.expert_advice) return;
+      const adv = appStatus.expert_advice;
+      const box = document.getElementById('adviceContentBox');
+
+      if (currentAdviceTab === 'signs') {
+        const items = adv.fatigue_signs || [];
+        box.innerHTML = `
+          <div class="text-[12px] font-semibold text-white/50 uppercase tracking-wider mb-1">Признаки усталости:</div>
+          <div class="space-y-1.5">
+            ${items.map(s => `
+              <div class="flex items-start gap-2">
+                <i class="ph ph-check-circle text-emerald-400 text-sm flex-shrink-0 mt-0.5"></i>
+                <span>${s}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (currentAdviceTab === 'ritual') {
+        const items = adv.ritual_tips || [];
+        box.innerHTML = `
+          <div class="text-[12px] font-semibold text-white/50 uppercase tracking-wider mb-1">Пошаговый ритуал (мостик на сон):</div>
+          <div class="space-y-1.5">
+            ${items.map((r, idx) => `
+              <div class="flex items-start gap-2">
+                <span class="w-4 h-4 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 border border-blue-500/30">${idx + 1}</span>
+                <span>${r}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        box.innerHTML = `
+          <div class="text-[12px] font-semibold text-white/50 uppercase tracking-wider mb-1">Скачки роста и регрессы:</div>
+          <p class="leading-relaxed text-white/80">${adv.growth_spurt || 'Период ровного сна без резких скачков.'}</p>
+        `;
+      }
+    }
+
+
+    // --------------------------------------------------------------------------
+    // 4. СВОДКА: ПЕРЕКЛЮЧЕНИЕ [ДЕНЬ | НЕДЕЛЯ] И НЕДЕЛЬНЫЙ ГРАФИК
+    // --------------------------------------------------------------------------
+    function switchStatsViewMode(mode) {
+      haptic('light');
+      statsViewMode = mode;
+
+      const dayBtn = document.getElementById('viewModeDayBtn');
+      const weekBtn = document.getElementById('viewModeWeekBtn');
+      const dayCont = document.getElementById('statsDayContainer');
+      const weekCont = document.getElementById('statsWeekContainer');
+
+      if (mode === 'day') {
+        dayBtn.className = 'py-1.5 rounded-xl bg-white/15 text-white shadow-sm transition';
+        weekBtn.className = 'py-1.5 rounded-xl text-white/50 hover:text-white transition';
+        dayCont.classList.remove('hidden');
+        weekCont.classList.add('hidden');
+        loadStats(selectedStatsDate);
+      } else {
+        weekBtn.className = 'py-1.5 rounded-xl bg-white/15 text-white shadow-sm transition';
+        dayBtn.className = 'py-1.5 rounded-xl text-white/50 hover:text-white transition';
+        dayCont.classList.add('hidden');
+        weekCont.classList.remove('hidden');
+        loadWeeklyStats(selectedStatsDate);
       }
     }
 
@@ -1220,7 +1542,6 @@
       document.getElementById('statsDayNapsCount').innerText = `${data.day_naps_count} снов`;
       document.getElementById('statsNightSleep').innerText = data.night_sleep_str;
 
-      // 24H Timeline render
       const container = document.getElementById('timelineContainer');
       container.innerHTML = '';
       data.timeline_segments.forEach(seg => {
@@ -1241,7 +1562,6 @@
         container.appendChild(div);
       });
 
-      // Session list
       const listEl = document.getElementById('statsSleepList');
       listEl.innerHTML = '';
 
@@ -1274,6 +1594,83 @@
           </div>
         `;
         listEl.appendChild(item);
+      });
+    }
+
+    // Weekly 7-Day Stats
+    async function loadWeeklyStats(endDateStr) {
+      if (!appStatus) return;
+      try {
+        const res = await fetch(`/api/stats/weekly?family_id=${appStatus.family.id}&end_date=${endDateStr}`);
+        if (!res.ok) throw new Error('Ошибка загрузки недели');
+        const data = await res.json();
+        renderWeeklyStats(data);
+      } catch (err) {
+        console.error('Weekly error:', err);
+      }
+    }
+
+    function renderWeeklyStats(data) {
+      document.getElementById('weekPeriodLabel').innerText = data.period_formatted;
+
+      // Weekly averages
+      const avg = data.averages;
+      document.getElementById('weekAvgTotal').innerText = avg.total_sleep_str;
+      document.getElementById('weekAvgNight').innerText = avg.night_sleep_str;
+      document.getElementById('weekAvgDay').innerText = avg.day_sleep_str;
+      document.getElementById('weekAvgWb').innerText = avg.avg_wb_str;
+      document.getElementById('weekAvgNaps').innerText = `в среднем ${avg.avg_naps} снов`;
+      document.getElementById('weekNormSleepHint').innerText = `норма ${avg.norm_total_sleep}ч`;
+      document.getElementById('weekNormWbHint').innerText = `норма ${avg.norm_wb_str}`;
+
+      // Trend
+      const trend = data.trend;
+      document.getElementById('weekTrendTitle').innerText = trend.title;
+      document.getElementById('weekTrendDesc').innerText = trend.desc;
+      const dot = document.getElementById('weekTrendDot');
+      if (trend.status === 'stable') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+      } else if (trend.status === 'deficit') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+      } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-400';
+      }
+
+      // Render 7 Stacked Bars
+      const barsContainer = document.getElementById('weekBarsContainer');
+      const labelsContainer = document.getElementById('weekDaysLabelsContainer');
+      barsContainer.innerHTML = '';
+      labelsContainer.innerHTML = '';
+
+      data.days.forEach(d => {
+        // Label
+        const lbl = document.createElement('div');
+        lbl.className = `text-center w-8 ${d.is_selected ? 'text-white font-bold' : 'text-white/40'}`;
+        lbl.innerText = d.day_name;
+        labelsContainer.appendChild(lbl);
+
+        // Stacked Bar Column
+        const col = document.createElement('div');
+        col.className = 'w-8 flex flex-col justify-end items-center h-full cursor-pointer group';
+        col.onclick = () => {
+          selectedStatsDate = d.date;
+          switchStatsViewMode('day');
+        };
+
+        const totalH = Math.max(d.total_bar_pct, 4);
+        const nightH = d.night_bar_pct;
+        const dayH = d.day_bar_pct;
+
+        col.innerHTML = `
+          <div class="text-[9px] font-mono text-white/50 mb-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+            ${d.total_sleep_min > 0 ? d.total_sleep_str : '0ч'}
+          </div>
+          <div class="w-full rounded-full overflow-hidden flex flex-col-reverse justify-start transition-all" style="height: ${totalH}%; background: rgba(255,255,255,0.06);">
+            <div style="height: ${(nightH / (nightH + dayH || 1)) * 100}%; background-color: #5e5ce6;" title="Ночь ${d.night_sleep_str}"></div>
+            <div style="height: ${(dayH / (nightH + dayH || 1)) * 100}%; background-color: #64d2ff;" title="День ${d.day_sleep_str}"></div>
+          </div>
+        `;
+        barsContainer.appendChild(col);
       });
     }
 
@@ -1318,7 +1715,11 @@
       const d = new Date(selectedStatsDate);
       d.setDate(d.getDate() + delta);
       selectedStatsDate = d.toISOString().split('T')[0];
-      loadStats(selectedStatsDate);
+      if (statsViewMode === 'day') {
+        loadStats(selectedStatsDate);
+      } else {
+        loadWeeklyStats(selectedStatsDate);
+      }
     }
 
     function openDatePicker() {
@@ -1328,10 +1729,67 @@
     function onDateSelected(val) {
       if (val) {
         selectedStatsDate = val;
-        loadStats(selectedStatsDate);
+        if (statsViewMode === 'day') {
+          loadStats(selectedStatsDate);
+        } else {
+          loadWeeklyStats(selectedStatsDate);
+        }
       }
     }
 
+    // --------------------------------------------------------------------------
+    // 5. ЭКСПОРТ ДАННЫХ ДЛЯ ПЕДИАТРА
+    // --------------------------------------------------------------------------
+    function updateExportLinks() {
+      if (!appStatus) return;
+      const csvBtn = document.getElementById('downloadCsvBtn');
+      if (csvBtn) {
+        csvBtn.href = `/api/export/csv?family_id=${appStatus.family.id}&days=14`;
+      }
+    }
+
+    function openExportModal() {
+      haptic('light');
+      updateExportLinks();
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    async function copyPediatricSummaryAction() {
+      haptic('medium');
+      if (!appStatus) return;
+      try {
+        const res = await fetch(`/api/export/text?family_id=${appStatus.family.id}`);
+        const data = await res.json();
+        await navigator.clipboard.writeText(data.report_text);
+        haptic('success');
+        alert('Отчет для врача успешно скопирован в буфер обмена!');
+        closeModal('exportModal');
+      } catch (e) {
+        alert('Ошибка при копировании отчета');
+      }
+    }
+
+    async function sharePediatricReportTelegram() {
+      haptic('medium');
+      if (!appStatus) return;
+      try {
+        const res = await fetch(`/api/export/text?family_id=${appStatus.family.id}`);
+        const data = await res.json();
+        closeModal('exportModal');
+        if (tg?.openTelegramLink) {
+          tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(data.report_text)}`);
+        } else {
+          await navigator.clipboard.writeText(data.report_text);
+          alert('Отчет скопирован! Вы можете вставить его в чат с педиатром.');
+        }
+      } catch (e) {
+        alert('Ошибка отправки отчета');
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. OFFSET & MANUAL SLEEP MODALS
+    // --------------------------------------------------------------------------
     function openOffsetModal() {
       haptic('light');
       document.getElementById('offsetModal').classList.remove('hidden');
@@ -1434,7 +1892,11 @@
         haptic('success');
         closeModal('manualSleepModal');
         await fetchStatus();
-        loadStats(selectedStatsDate);
+        if (statsViewMode === 'day') {
+          loadStats(selectedStatsDate);
+        } else {
+          loadWeeklyStats(selectedStatsDate);
+        }
       } catch (e) {
         alert('Ошибка при сохранении');
       }
@@ -1450,7 +1912,11 @@
         haptic('warning');
         closeModal('manualSleepModal');
         await fetchStatus();
-        loadStats(selectedStatsDate);
+        if (statsViewMode === 'day') {
+          loadStats(selectedStatsDate);
+        } else {
+          loadWeeklyStats(selectedStatsDate);
+        }
       } catch (e) {}
     }
 
