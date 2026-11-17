@@ -38,8 +38,8 @@ async def run_tests():
     print(f"   ✅ Both parents successfully linked to family {code}!")
 
     print("5. Testing sleep tracking (Dad puts baby to bed, Mom marks wake up)...")
-    # Sleep starts 1 hour ago
-    sleep_start = (datetime.now() - timedelta(hours=1, minutes=15)).isoformat()
+    # Sleep starts 35 mins ago, ends 5 mins ago (within today)
+    sleep_start = (datetime.now() - timedelta(minutes=35)).isoformat()
     session = await db.start_sleep(family["id"], user1_id, start_time_iso=sleep_start, is_night=0)
     assert session["family_id"] == family["id"]
 
@@ -48,7 +48,7 @@ async def run_tests():
     assert active["id"] == session["id"]
 
     # Mom marks wake up
-    wake_time = (datetime.now() - timedelta(minutes=15)).isoformat()
+    wake_time = (datetime.now() - timedelta(minutes=5)).isoformat()
     ended = await db.stop_sleep(family["id"], user2_id, end_time_iso=wake_time)
     assert ended["end_time"] == wake_time
     print(f"   ✅ Sleep recorded: duration {ended['start_time']} -> {ended['end_time']}")
@@ -66,7 +66,7 @@ async def run_tests():
     summary = analytics.calculate_daily_summary(sleeps, sleep_date, birth_date)
     print("   Total sleep:", summary["total_sleep_str"])
     print("   Timeline segments count:", len(summary["timeline_segments"]))
-    assert summary["total_sleep_min"] == 60 # 1h 15m - 15m = 60m
+    assert summary["total_sleep_min"] == 30 # 35m - 5m = 30m
     print("   ✅ Daily summary verified!")
 
     print("\n🎉 ALL TESTS PASSED SUCCESSFULLY!")
