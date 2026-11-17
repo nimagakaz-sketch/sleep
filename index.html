@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Трекер сна Севы</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            baby: {
+              50: '#fdf4f5',
+              100: '#fbe8eb',
+              200: '#f7d5da',
+              500: '#e06d83',
+              600: '#cc546c',
+            },
+            night: {
+              800: '#1e1b4b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Плавные переходы и нативные стили для Telegram */
+    body {
+      background-color: var(--tg-theme-bg-color, #f8fafc);
+      color: var(--tg-theme-text-color, #0f172a);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .safe-top {
+      padding-top: max(env(safe-area-inset-top), 12px);
+    }
+    .safe-bottom {
+      padding-bottom: max(env(safe-area-inset-bottom), 16px);
+    }
+    .tg-card {
+      background-color: var(--tg-theme-secondary-bg-color, #ffffff);
+    }
+    .pulse-glow {
+      box-shadow: 0 0 25px rgba(224, 109, 131, 0.35);
+    }
+    .pulse-glow-sleep {
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.4);
+    }
+    /* Скрытие полосы скролла */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen safe-top safe-bottom">
+
+  <!-- ВЕРХНЯЯ ШАПКА -->
+  <header class="px-4 py-2 flex items-center justify-between border-b border-black/5 dark:border-white/5">
+    <div class="flex items-center gap-2.5">
+      <div id="babyAvatar" class="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-400 to-indigo-500 flex items-center justify-center text-white text-lg shadow-sm">
+        👶
+      </div>
+      <div>
+        <div class="flex items-center gap-1.5">
+          <h1 id="babyHeaderName" class="font-bold text-base tracking-tight">Сева</h1>
+          <span id="babyAgeBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-300 font-medium">2 мес 7 дн</span>
+        </div>
+        <p id="familyStatusText" class="text-xs text-gray-400 flex items-center gap-1">
+          <i class="ph ph-users"></i> <span id="familyCodeLabel">BABY-...</span>
+        </p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="switchTab('settings')" class="p-2 rounded-xl text-gray-500 hover:bg-black/5 dark:hover:bg-white/5 transition">
+        <i class="ph ph-gear text-xl"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ (ВКЛАДКИ) -->
+  <main class="flex-1 overflow-y-auto px-4 py-3">
+
+    <!-- 1. ТАБ: ГЛАВНАЯ / ТАЙМЕР -->
+    <section id="tab-home" class="space-y-4">
+      
+      <!-- ГЛАВНАЯ КАРТОЧКА СОСТОЯНИЯ (БОДРСТВУЕТ / СПИТ) -->
+      <div id="mainStatusCard" class="tg-card rounded-3xl p-5 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden transition-all duration-300">
+        
+        <!-- Верхняя строчка статуса -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span id="statusIndicatorDot" class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="statusTitle" class="text-sm font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">Бодрствует</span>
+          </div>
+          <span id="statusStartedAt" class="text-xs text-gray-400 font-medium">с --:--</span>
+        </div>
+
+        <!-- Центральный таймер -->
+        <div class="my-6 text-center">
+          <div id="statusIcon" class="text-4xl mb-2 animate-bounce">☀️</div>
+          <div id="mainTimer" class="text-5xl font-extrabold tracking-tight font-mono">00:00:00</div>
+          <div id="timerSubtext" class="text-xs text-gray-400 mt-1">Текущее время бодрствования</div>
+        </div>
+
+        <!-- КАРТОЧКА СЛЕДУЮЩЕГО СНА (Когда бодрствует) -->
+        <div id="nextSleepBox" class="rounded-2xl p-3.5 bg-gray-50 dark:bg-white/5 border border-black/5 dark:border-white/5 mb-5 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-500">Рекомендуемый сон</span>
+            <span id="nextSleepStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Спокойно</span>
+          </div>
+          <div class="flex items-baseline justify-between">
+            <div class="text-2xl font-bold tracking-tight" id="nextSleepTime">~ --:--</div>
+            <div class="text-xs font-semibold text-gray-500" id="nextSleepCountdown">осталось -- мин</div>
+          </div>
+          <!-- Прогресс-бар ВБ -->
+          <div class="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+            <div id="wakeProgressBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 20%"></div>
+          </div>
+          <p id="nextSleepStageDesc" class="text-[11px] text-gray-500 leading-tight">
+            Малыш бодрствует, можно активно играть и общаться.
+          </p>
+        </div>
+
+        <!-- ГЛАВНАЯ КНОПКА ДЕЙСТВИЯ -->
+        <div class="space-y-2">
+          <button id="primaryActionBtn" onclick="handlePrimaryAction()" class="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98]">
+            <i id="primaryActionIcon" class="ph ph-moon text-2xl"></i>
+            <span id="primaryActionText">Уложить спать</span>
+          </button>
+
+          <!-- Быстрые корректировки времени -->
+          <div class="flex items-center justify-center gap-2 pt-1 text-xs text-gray-500">
+            <span>Забыли нажать?</span>
+            <button onclick="openOffsetModal()" class="font-medium text-indigo-600 dark:text-indigo-400 underline underline-offset-2">
+              Уточнить время
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- КРАТКАЯ СВОДКА ЗА СЕГОДНЯ -->
+      <div class="tg-card rounded-2xl p-4 shadow-sm border border-black/5 dark:border-white/5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Сегодня</span>
+          <button onclick="switchTab('stats')" class="text-xs font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5">
+            Подробно <i class="ph ph-caret-right"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5">
+            <div id="quickTodayTotal" class="text-base font-bold">--</div>
+            <div class="text-[10px] text-gray-400">Всего сна</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5">
+            <div id="quickTodayNaps" class="text-base font-bold">--</div>
+            <div class="text-[10px] text-gray-400">Снов</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5">
+            <div id="quickTodayAvgWb" class="text-base font-bold">--</div>
+            <div class="text-[10px] text-gray-400">Ср. ВБ</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ПОСЛЕДНИЕ СНЫ СЕГОДНЯ -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Сны за сегодня</span>
+          <button onclick="openManualSleepModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1">
+            <i class="ph ph-plus-circle"></i> Добавить
+          </button>
+        </div>
+        <div id="todaySleepList" class="space-y-2">
+          <!-- Заполняется динамически -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 2. ТАБ: СВОДКА И СТАТИСТИКА -->
+    <section id="tab-stats" class="space-y-4 hidden">
+      
+      <!-- ВЫБОР ДАТЫ -->
+      <div class="tg-card rounded-2xl p-2.5 shadow-sm border border-black/5 dark:border-white/5 flex items-center justify-between">
+        <button onclick="changeStatsDate(-1)" class="p-2 rounded-xl text-gray-500 hover:bg-black/5 transition">
+          <i class="ph ph-caret-left text-lg"></i>
+        </button>
+        <div class="text-center cursor-pointer" onclick="openDatePicker()">
+          <div id="statsDateLabel" class="font-bold text-sm">Сегодня, 18 ноя</div>
+          <input type="date" id="hiddenDateInput" class="hidden" onchange="onDateSelected(this.value)">
+        </div>
+        <button id="statsNextDayBtn" onclick="changeStatsDate(1)" class="p-2 rounded-xl text-gray-500 hover:bg-black/5 transition">
+          <i class="ph ph-caret-right text-lg"></i>
+        </button>
+      </div>
+
+      <!-- 4 КАРТОЧКИ КЛЮЧЕВЫХ МЕТРИК -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="tg-card rounded-2xl p-3.5 shadow-sm border border-black/5 dark:border-white/5">
+          <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+            <i class="ph ph-moon-stars text-indigo-500"></i> Всего сна
+          </div>
+          <div id="statsTotalSleep" class="text-xl font-bold">0ч 0м</div>
+          <div id="statsNormCompare" class="text-[10px] text-gray-400 mt-0.5">норма: 14-16ч</div>
+        </div>
+
+        <div class="tg-card rounded-2xl p-3.5 shadow-sm border border-black/5 dark:border-white/5">
+          <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+            <i class="ph ph-hourglass-high text-amber-500"></i> Ср. бодрствование
+          </div>
+          <div id="statsAvgWb" class="text-xl font-bold">0ч 0м</div>
+          <div id="statsNormWb" class="text-[10px] text-gray-400 mt-0.5">норма: 1ч 15м - 1ч 30м</div>
+        </div>
+
+        <div class="tg-card rounded-2xl p-3.5 shadow-sm border border-black/5 dark:border-white/5">
+          <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+            <i class="ph ph-sun text-amber-500"></i> Дневной сон
+          </div>
+          <div id="statsDaySleep" class="text-xl font-bold">0ч 0м</div>
+          <div id="statsDayNapsCount" class="text-[10px] text-gray-400 mt-0.5">0 снов</div>
+        </div>
+
+        <div class="tg-card rounded-2xl p-3.5 shadow-sm border border-black/5 dark:border-white/5">
+          <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+            <i class="ph ph-bed text-indigo-500"></i> Ночной сон
+          </div>
+          <div id="statsNightSleep" class="text-xl font-bold">0ч 0м</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">основной отдых</div>
+        </div>
+      </div>
+
+      <!-- 24-ЧАСОВОЙ ТАЙМЛАЙН ДНЯ -->
+      <div class="tg-card rounded-2xl p-4 shadow-sm border border-black/5 dark:border-white/5 space-y-2">
+        <div class="flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wider">
+          <span>Таймлайн 24 часа</span>
+          <span class="text-[10px] font-normal normal-case">00:00 - 24:00</span>
+        </div>
+        
+        <!-- Шкала полосы дня -->
+        <div id="timelineContainer" class="w-full bg-gray-100 dark:bg-gray-800 h-8 rounded-xl relative overflow-hidden flex border border-black/5">
+          <!-- Отрезки снов вставляются через JS -->
+        </div>
+
+        <!-- Легенда цветов -->
+        <div class="flex items-center justify-around text-[10px] text-gray-500 pt-1">
+          <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span> Ночь
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> День
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Бодрствование
+          </div>
+        </div>
+      </div>
+
+      <!-- СПИСОК ВСЕХ СНОВ ЗА ДЕНЬ С РЕДАКТИРОВАНИЕМ -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Список снов</span>
+          <button onclick="openManualSleepModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1">
+            <i class="ph ph-plus-circle"></i> Добавить сон
+          </button>
+        </div>
+        <div id="statsSleepList" class="space-y-2">
+          <!-- Динамический список -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 3. ТАБ: МАЛЫШ И СЕМЬЯ (НАСТРОЙКИ) -->
+    <section id="tab-settings" class="space-y-4 hidden">
+      
+      <!-- ПРОФИЛЬ МАЛЫША -->
+      <div class="tg-card rounded-2xl p-4 shadow-sm border border-black/5 dark:border-white/5 space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Профиль малыша</h3>
+        
+        <div class="space-y-2.5 text-sm">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Имя малыша</label>
+            <input type="text" id="settingBabyName" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 dark:border-white/10 font-medium" value="Малыш">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Дата рождения</label>
+            <input type="date" id="settingBirthDate" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 dark:border-white/10 font-medium" value="2026-09-11">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Индивидуальное время бодрствования (минут)</label>
+            <input type="number" id="settingCustomWb" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 dark:border-white/10 font-medium" placeholder="Оставить пустым для авторасчета">
+            <span class="text-[11px] text-gray-400">Автонорма для вашего возраста: <b id="normWbHint">75 - 90 мин</b></span>
+          </div>
+
+          <button onclick="saveBabySettings()" class="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm shadow">
+            Сохранить данные малыша
+          </button>
+        </div>
+      </div>
+
+      <!-- СЕМЕЙНЫЙ ДОСТУП (ДВА РОДИТЕЛЯ) -->
+      <div class="tg-card rounded-2xl p-4 shadow-sm border border-black/5 dark:border-white/5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Доступ для родителей</h3>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Синхронизация</span>
+        </div>
+        
+        <p class="text-xs text-gray-500">
+          Мама и папа могут синхронно отмечать сны и видеть один и тот же таймер в реальном времени.
+        </p>
+
+        <!-- Код семьи -->
+        <div class="p-3.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 font-semibold tracking-wider">Код вашей семьи</div>
+            <div id="familyCodeDisplay" class="text-lg font-mono font-extrabold tracking-wider">BABY-XXXX</div>
+          </div>
+          <button onclick="copyFamilyCode()" class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-medium text-xs flex items-center gap-1 active:scale-95 transition">
+            <i class="ph ph-copy"></i> Копировать
+          </button>
+        </div>
+
+        <button onclick="shareInviteLink()" class="w-full py-2.5 rounded-xl border border-indigo-600 text-indigo-600 dark:text-indigo-400 font-semibold text-sm flex items-center justify-center gap-2 active:scale-95 transition">
+          <i class="ph ph-share-network"></i> Отправить приглашение партнеру
+        </button>
+
+        <!-- Список подключенных родителей -->
+        <div class="pt-2">
+          <div class="text-xs text-gray-400 font-semibold mb-1.5">Подключенные аккаунты:</div>
+          <div id="familyMembersList" class="space-y-1.5 text-xs">
+            <!-- Список участников -->
+          </div>
+        </div>
+
+        <!-- Подключение к другой семье -->
+        <div class="pt-3 border-t border-black/5 dark:border-white/5 space-y-2">
+          <div class="text-xs font-semibold text-gray-600 dark:text-gray-300">Присоединиться к семье партнера</div>
+          <div class="flex gap-2">
+            <input type="text" id="joinCodeInput" placeholder="BABY-XXXX" class="flex-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 text-sm font-mono uppercase">
+            <button onclick="joinFamilyAction()" class="px-4 py-2 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold text-xs">
+              Войти
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
+  <nav class="tg-card border-t border-black/5 dark:border-white/5 px-6 py-2 flex items-center justify-between safe-bottom">
+    <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px] transition">
+      <i class="ph ph-timer text-2xl"></i>
+      <span>Трекер</span>
+    </button>
+    <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center gap-1 text-gray-400 font-medium text-[11px] transition">
+      <i class="ph ph-chart-bar text-2xl"></i>
+      <span>Сводка</span>
+    </button>
+    <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center gap-1 text-gray-400 font-medium text-[11px] transition">
+      <i class="ph ph-baby text-2xl"></i>
+      <span>Малыш</span>
+    </button>
+  </nav>
+
+  <!-- МОДАЛЬНОЕ ОКНО: БЫСТРЫЙ СДВИГ ВРЕМЕНИ (Offset) -->
+  <div id="offsetModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 hidden">
+    <div class="tg-card w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl border border-black/10">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-base" id="offsetModalTitle">Уточнить время</h3>
+        <button onclick="closeModal('offsetModal')" class="p-1 rounded-full text-gray-400 hover:text-gray-600">
+          <i class="ph ph-x text-lg"></i>
+        </button>
+      </div>
+      <p class="text-xs text-gray-500" id="offsetModalDesc">
+        Если малыш уснул или проснулся раньше, выберите сдвиг назад:
+      </p>
+      <div class="grid grid-cols-3 gap-2">
+        <button onclick="applyTimeOffset(5)" class="py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">-5 мин</button>
+        <button onclick="applyTimeOffset(10)" class="py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">-10 мин</button>
+        <button onclick="applyTimeOffset(15)" class="py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">-15 мин</button>
+        <button onclick="applyTimeOffset(20)" class="py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">-20 мин</button>
+        <button onclick="applyTimeOffset(30)" class="py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">-30 мин</button>
+        <button onclick="applyTimeOffset(45)" class="py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition">-45 мин</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: РУЧНОЙ ВВОД СНА -->
+  <div id="manualSleepModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 hidden">
+    <div class="tg-card w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl border border-black/10">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-base" id="manualModalTitle">Добавить сон вручную</h3>
+        <button onclick="closeModal('manualSleepModal')" class="p-1 rounded-full text-gray-400 hover:text-gray-600">
+          <i class="ph ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editSleepId" value="">
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Дата сна</label>
+          <input type="date" id="manualSleepDate" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 font-medium">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Начало</label>
+            <input type="time" id="manualStartTime" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 font-medium" value="13:00">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Окончание</label>
+            <input type="time" id="manualEndTime" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 font-medium" value="14:15">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-white/5">
+          <span class="text-xs font-medium">Ночной сон</span>
+          <input type="checkbox" id="manualIsNight" class="w-4 h-4 text-indigo-600 rounded">
+        </div>
+
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Заметка / как заснул</label>
+          <input type="text" id="manualNotes" placeholder="Например: в коляске, на груди" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-black/10 text-xs">
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button id="deleteSleepBtn" onclick="deleteSleepAction()" class="px-4 py-2.5 rounded-xl bg-red-100 text-red-600 font-semibold text-xs hidden">
+            Удалить
+          </button>
+          <button onclick="saveManualSleepAction()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm shadow">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC JS -->
+  <script>
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      // Адаптация под тему
+      if (tg.colorScheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    }
+
+    function haptic(type = 'light') {
+      try {
+        if (tg?.HapticFeedback) {
+          if (type === 'success' || type === 'error' || type === 'warning') {
+            tg.HapticFeedback.notificationOccurred(type);
+          } else {
+            tg.HapticFeedback.impactOccurred(type);
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Состояние приложения
+    let currentUserId = tg?.initDataUnsafe?.user?.id || 10001;
+    let currentUserName = tg?.initDataUnsafe?.user?.first_name || 'Родитель';
+    let appStatus = null;
+    let selectedStatsDate = new Date().toISOString().split('T')[0];
+    let timerInterval = null;
+
+    // Смена вкладок
+    function switchTab(tabName) {
+      haptic('light');
+      ['home', 'stats', 'settings'].forEach(t => {
+        const tabEl = document.getElementById(`tab-${t}`);
+        const navEl = document.getElementById(`nav-${t}`);
+        if (t === tabName) {
+          tabEl.classList.remove('hidden');
+          navEl.classList.add('text-indigo-600', 'dark:text-indigo-400');
+          navEl.classList.remove('text-gray-400');
+        } else {
+          tabEl.classList.add('hidden');
+          navEl.classList.remove('text-indigo-600', 'dark:text-indigo-400');
+          navEl.classList.add('text-gray-400');
+        }
+      });
+
+      if (tabName === 'stats') {
+        loadStats(selectedStatsDate);
+      }
+    }
+
+    // Загрузка глобального статуса
+    async function fetchStatus() {
+      try {
+        const res = await fetch(`/api/status?telegram_id=${currentUserId}&username=${encodeURIComponent(currentUserName)}`);
+        if (!res.ok) throw new Error('Ошибка сети');
+        appStatus = await res.json();
+        renderStatus();
+      } catch (err) {
+        console.error('Fetch status error:', err);
+      }
+    }
+
+    // Отрисовка статуса и таймера
+    function renderStatus() {
+      if (!appStatus) return;
+
+      const { is_sleeping, active_sleep, last_completed_sleep, next_sleep, baby, family } = appStatus;
+
+      // Данные малыша
+      document.getElementById('babyHeaderName').innerText = baby.name || 'Малыш';
+      document.getElementById('babyAgeBadge').innerText = baby.age_text || '2 мес 7 дн';
+      document.getElementById('familyCodeLabel').innerText = family.invite_code;
+      document.getElementById('familyCodeDisplay').innerText = family.invite_code;
+      document.getElementById('settingBabyName').value = baby.name || 'Малыш';
+      document.getElementById('settingBirthDate').value = baby.birth_date;
+      document.getElementById('settingCustomWb').value = baby.custom_wb_min || '';
+      document.getElementById('normWbHint').innerText = `${baby.norm_wb_min} - ${baby.norm_wb_max} мин`;
+
+      // Список участников семьи
+      renderFamilyMembers(family.members || []);
+
+      // Отрисовка состояния Спит / Бодрствует
+      const card = document.getElementById('mainStatusCard');
+      const dot = document.getElementById('statusIndicatorDot');
+      const statusTitle = document.getElementById('statusTitle');
+      const startedAt = document.getElementById('statusStartedAt');
+      const icon = document.getElementById('statusIcon');
+      const timerSub = document.getElementById('timerSubtext');
+      const nextSleepBox = document.getElementById('nextSleepBox');
+      const primaryBtn = document.getElementById('primaryActionBtn');
+      const primaryIcon = document.getElementById('primaryActionIcon');
+      const primaryText = document.getElementById('primaryActionText');
+
+      if (is_sleeping && active_sleep) {
+        // Ребенок спит
+        card.classList.remove('pulse-glow');
+        card.classList.add('pulse-glow-sleep');
+        dot.className = 'w-3 h-3 rounded-full bg-indigo-500 animate-pulse';
+        statusTitle.innerText = active_sleep.is_night ? 'Ночной сон' : 'Дневной сон';
+        const startDt = new Date(active_sleep.start_time);
+        startedAt.innerText = `с ${formatTimeOnly(startDt)}`;
+        icon.innerText = '🌙';
+        timerSub.innerText = 'Малыш сладко спит';
+        nextSleepBox.classList.add('hidden');
+
+        primaryBtn.className = 'w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98]';
+        primaryIcon.className = 'ph ph-sun text-2xl';
+        primaryText.innerText = 'Малыш проснулся';
+      } else {
+        // Ребенок бодрствует
+        card.classList.remove('pulse-glow-sleep');
+        dot.className = 'w-3 h-3 rounded-full bg-emerald-500 animate-pulse';
+        statusTitle.innerText = 'Бодрствует';
+        icon.innerText = '☀️';
+        timerSub.innerText = 'Время бодрствования';
+
+        if (last_completed_sleep) {
+          const wakeDt = new Date(last_completed_sleep.end_time);
+          startedAt.innerText = `с ${formatTimeOnly(wakeDt)}`;
+        } else {
+          startedAt.innerText = '';
+        }
+
+        nextSleepBox.classList.remove('hidden');
+
+        if (next_sleep) {
+          const targetDt = new Date(next_sleep.target_sleep_time);
+          document.getElementById('nextSleepTime').innerText = `~ ${formatTimeOnly(targetDt)}`;
+          
+          const minLeft = next_sleep.minutes_left;
+          const badge = document.getElementById('nextSleepStatusBadge');
+          const countdown = document.getElementById('nextSleepCountdown');
+          const pbar = document.getElementById('wakeProgressBar');
+          const desc = document.getElementById('nextSleepStageDesc');
+
+          badge.innerText = next_sleep.status_text;
+          badge.style.backgroundColor = `${next_sleep.color}25`;
+          badge.style.color = next_sleep.color;
+          pbar.style.backgroundColor = next_sleep.color;
+          desc.innerText = next_sleep.stage_desc;
+
+          if (minLeft > 0) {
+            countdown.innerText = `осталось ${minLeft} мин`;
+          } else {
+            countdown.innerText = `перегул +${Math.abs(minLeft)} мин`;
+          }
+
+          // Прогресс бар (процент от ВБ)
+          const pct = Math.min(100, Math.max(5, Math.round((next_sleep.awake_duration_min / next_sleep.target_wb_min) * 100)));
+          pbar.style.width = `${pct}%`;
+        }
+
+        primaryBtn.className = 'w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98]';
+        primaryIcon.className = 'ph ph-moon text-2xl';
+        primaryText.innerText = 'Уложить спать';
+      }
+
+      startLiveTimer();
+      renderTodayQuickStats();
+    }
+
+    // Живой таймер (обновляется каждую секунду)
+    function startLiveTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+
+      function update() {
+        if (!appStatus) return;
+        const now = new Date();
+        let startDt = null;
+
+        if (appStatus.is_sleeping && appStatus.active_sleep) {
+          startDt = new Date(appStatus.active_sleep.start_time);
+        } else if (appStatus.last_completed_sleep) {
+          startDt = new Date(appStatus.last_completed_sleep.end_time);
+        }
+
+        if (startDt) {
+          const diffSec = Math.max(0, Math.floor((now - startDt) / 1000));
+          const h = Math.floor(diffSec / 3600);
+          const m = Math.floor((diffSec % 3600) / 60);
+          const s = diffSec % 60;
+          document.getElementById('mainTimer').innerText = 
+            `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        } else {
+          document.getElementById('mainTimer').innerText = '00:00:00';
+        }
+      }
+
+      update();
+      timerInterval = setInterval(update, 1000);
+    }
+
+    // Обработка клика по главной кнопке (Уложить / Проснулся)
+    async function handlePrimaryAction() {
+      if (!appStatus) return;
+      haptic('medium');
+
+      const isSleeping = appStatus.is_sleeping;
+      const endpoint = isSleeping ? '/api/sleep/stop' : '/api/sleep/start';
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            family_id: appStatus.family.id,
+            user_id: currentUserId
+          })
+        });
+        if (res.ok) {
+          haptic('success');
+          await fetchStatus();
+          loadStats(selectedStatsDate);
+        }
+      } catch (err) {
+        console.error('Action error:', err);
+      }
+    }
+
+    // Загрузка статистики за день
+    async function loadStats(dateStr) {
+      if (!appStatus) return;
+      try {
+        const res = await fetch(`/api/stats/daily?family_id=${appStatus.family.id}&date=${dateStr}`);
+        if (!res.ok) throw new Error('Ошибка загрузки статистики');
+        const data = await res.json();
+        renderStats(data);
+      } catch (err) {
+        console.error('Stats error:', err);
+      }
+    }
+
+    // Отрисовка статистики
+    function renderStats(data) {
+      // Обновляем текст даты
+      const d = new Date(data.date);
+      const isToday = data.is_today;
+      document.getElementById('statsDateLabel').innerText = isToday ? `Сегодня, ${formatDateShort(d)}` : formatDateShort(d);
+      document.getElementById('hiddenDateInput').value = data.date;
+
+      // Метрики
+      document.getElementById('statsTotalSleep').innerText = data.total_sleep_str;
+      document.getElementById('statsAvgWb').innerText = data.avg_wb_str;
+      document.getElementById('statsDaySleep').innerText = data.day_sleep_str;
+      document.getElementById('statsDayNapsCount').innerText = `${data.day_naps_count} снов`;
+      document.getElementById('statsNightSleep').innerText = data.night_sleep_str;
+
+      // 24-часовой таймлайн
+      const container = document.getElementById('timelineContainer');
+      container.innerHTML = '';
+      data.timeline_segments.forEach(seg => {
+        const div = document.createElement('div');
+        div.style.left = `${seg.left_pct}%`;
+        div.style.width = `${seg.width_pct}%`;
+        div.className = 'absolute top-0 bottom-0 transition-all cursor-pointer';
+
+        if (seg.type === 'night_sleep') {
+          div.classList.add('bg-indigo-600');
+        } else if (seg.type === 'day_sleep') {
+          div.classList.add('bg-sky-400');
+        } else {
+          div.classList.add('bg-emerald-400/30');
+        }
+
+        div.title = `${seg.label} (${seg.start} - ${seg.end})`;
+        container.appendChild(div);
+      });
+
+      // Список снов
+      const listEl = document.getElementById('statsSleepList');
+      listEl.innerHTML = '';
+
+      if (data.sleeps.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-6 text-xs text-gray-400">В этот день записей о сне пока нет</div>';
+        return;
+      }
+
+      data.sleeps.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = 'p-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-black/5 dark:border-white/5 flex items-center justify-between text-xs cursor-pointer hover:bg-black/5';
+        item.onclick = () => openEditSleepModal(s);
+
+        const iconClass = s.is_night ? 'ph-moon text-indigo-500' : 'ph-sun text-amber-500';
+        const typeText = s.is_night ? 'Ночной сон' : `Дневной сон #${idx + 1}`;
+
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-base shadow-sm">
+              <i class="ph ${iconClass}"></i>
+            </div>
+            <div>
+              <div class="font-bold text-sm">${s.start_formatted} — ${s.end_formatted}</div>
+              <div class="text-gray-400 text-[11px]">${typeText} • от ${s.started_by}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-extrabold font-mono text-sm text-indigo-600 dark:text-indigo-400">${s.duration_str}</div>
+            ${s.notes ? `<div class="text-[10px] text-gray-400 truncate max-w-[100px]">${s.notes}</div>` : ''}
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    // Быстрая сводка сегодня на главном экране
+    async function renderTodayQuickStats() {
+      if (!appStatus) return;
+      const todayStr = new Date().toISOString().split('T')[0];
+      try {
+        const res = await fetch(`/api/stats/daily?family_id=${appStatus.family.id}&date=${todayStr}`);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('quickTodayTotal').innerText = data.total_sleep_str;
+          document.getElementById('quickTodayNaps').innerText = data.day_naps_count;
+          document.getElementById('quickTodayAvgWb').innerText = data.avg_wb_str || '--';
+
+          // Список последних 3 снов на главной
+          const list = document.getElementById('todaySleepList');
+          list.innerHTML = '';
+          if (data.sleeps.length === 0) {
+            list.innerHTML = '<div class="text-center py-4 text-xs text-gray-400">За сегодня снов еще не зафиксировано</div>';
+          } else {
+            data.sleeps.slice(-3).reverse().forEach(s => {
+              const div = document.createElement('div');
+              div.className = 'p-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-black/5 flex items-center justify-between text-xs';
+              div.innerHTML = `
+                <div class="flex items-center gap-2">
+                  <i class="ph ${s.is_night ? 'ph-moon text-indigo-500' : 'ph-sun text-amber-500'} text-lg"></i>
+                  <div>
+                    <span class="font-semibold">${s.start_formatted} — ${s.end_formatted}</span>
+                    <span class="text-gray-400 text-[10px] block">${s.is_night ? 'Ночь' : 'День'}</span>
+                  </div>
+                </div>
+                <span class="font-mono font-bold text-indigo-600">${s.duration_str}</span>
+              `;
+              list.appendChild(div);
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Сдвиг даты в сводке
+    function changeStatsDate(delta) {
+      haptic('light');
+      const d = new Date(selectedStatsDate);
+      d.setDate(d.getDate() + delta);
+      selectedStatsDate = d.toISOString().split('T')[0];
+      loadStats(selectedStatsDate);
+    }
+
+    function openDatePicker() {
+      document.getElementById('hiddenDateInput').showPicker();
+    }
+
+    function onDateSelected(val) {
+      if (val) {
+        selectedStatsDate = val;
+        loadStats(selectedStatsDate);
+      }
+    }
+
+    // Быстрый сдвиг (Offset modal)
+    function openOffsetModal() {
+      haptic('light');
+      document.getElementById('offsetModal').classList.remove('hidden');
+    }
+
+    async function applyTimeOffset(minutes) {
+      haptic('medium');
+      closeModal('offsetModal');
+      if (!appStatus) return;
+
+      const endpoint = appStatus.is_sleeping ? '/api/sleep/offset_start' : '/api/sleep/offset_wake';
+      try {
+        await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            family_id: appStatus.family.id,
+            user_id: currentUserId,
+            offset_minutes: minutes
+          })
+        });
+        haptic('success');
+        await fetchStatus();
+      } catch (e) {}
+    }
+
+    // Модалка ручного ввода
+    function openManualSleepModal() {
+      haptic('light');
+      document.getElementById('editSleepId').value = '';
+      document.getElementById('manualModalTitle').innerText = 'Добавить сон вручную';
+      document.getElementById('manualSleepDate').value = selectedStatsDate;
+      document.getElementById('manualStartTime').value = '12:00';
+      document.getElementById('manualEndTime').value = '13:15';
+      document.getElementById('manualIsNight').checked = false;
+      document.getElementById('manualNotes').value = '';
+      document.getElementById('deleteSleepBtn').classList.add('hidden');
+      document.getElementById('manualSleepModal').classList.remove('hidden');
+    }
+
+    function openEditSleepModal(s) {
+      haptic('light');
+      document.getElementById('editSleepId').value = s.id;
+      document.getElementById('manualModalTitle').innerText = 'Редактировать сон';
+      
+      const startDt = new Date(s.start_time);
+      const endDt = s.end_time ? new Date(s.end_time) : new Date();
+
+      document.getElementById('manualSleepDate').value = s.start_time.split('T')[0];
+      document.getElementById('manualStartTime').value = formatTimeInput(startDt);
+      document.getElementById('manualEndTime').value = formatTimeInput(endDt);
+      document.getElementById('manualIsNight').checked = s.is_night;
+      document.getElementById('manualNotes').value = s.notes || '';
+      document.getElementById('deleteSleepBtn').classList.remove('hidden');
+      document.getElementById('manualSleepModal').classList.remove('hidden');
+    }
+
+    async function saveManualSleepAction() {
+      const sleepId = document.getElementById('editSleepId').value;
+      const dateVal = document.getElementById('manualSleepDate').value;
+      const startVal = document.getElementById('manualStartTime').value;
+      const endVal = document.getElementById('manualEndTime').value;
+      const isNight = document.getElementById('manualIsNight').checked;
+      const notes = document.getElementById('manualNotes').value;
+
+      if (!dateVal || !startVal || !endVal) {
+        alert('Заполните дату и время');
+        return;
+      }
+
+      const startIso = `${dateVal}T${startVal}:00`;
+      const endIso = `${dateVal}T${endVal}:00`;
+
+      try {
+        if (sleepId) {
+          // Редактирование
+          await fetch(`/api/sleep/${sleepId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              family_id: appStatus.family.id,
+              start_time: startIso,
+              end_time: endIso,
+              is_night: isNight,
+              notes: notes
+            })
+          });
+        } else {
+          // Создание
+          await fetch('/api/sleep/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              family_id: appStatus.family.id,
+              user_id: currentUserId,
+              start_time: startIso,
+              end_time: endIso,
+              is_night: isNight,
+              notes: notes
+            })
+          });
+        }
+        haptic('success');
+        closeModal('manualSleepModal');
+        await fetchStatus();
+        loadStats(selectedStatsDate);
+      } catch (e) {
+        alert('Ошибка при сохранении сна');
+      }
+    }
+
+    async function deleteSleepAction() {
+      const sleepId = document.getElementById('editSleepId').value;
+      if (!sleepId) return;
+      if (!confirm('Точно удалить эту запись о сне?')) return;
+
+      try {
+        await fetch(`/api/sleep/${sleepId}?family_id=${appStatus.family.id}`, { method: 'DELETE' });
+        haptic('warning');
+        closeModal('manualSleepModal');
+        await fetchStatus();
+        loadStats(selectedStatsDate);
+      } catch (e) {}
+    }
+
+    // Сохранение настроек малыша
+    async function saveBabySettings() {
+      haptic('light');
+      const name = document.getElementById('settingBabyName').value;
+      const birth = document.getElementById('settingBirthDate').value;
+      const customWb = parseInt(document.getElementById('settingCustomWb').value) || null;
+
+      try {
+        await fetch('/api/baby', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            family_id: appStatus.family.id,
+            baby_name: name,
+            baby_birth_date: birth,
+            custom_wake_window_min: customWb
+          })
+        });
+        haptic('success');
+        alert('Данные малыша сохранены!');
+        await fetchStatus();
+      } catch (e) {
+        alert('Ошибка сохранения');
+      }
+    }
+
+    // Семейный доступ
+    function copyFamilyCode() {
+      haptic('medium');
+      const code = appStatus.family.invite_code;
+      navigator.clipboard.writeText(code);
+      alert(`Код ${code} скопирован! Отправьте его второму родителю.`);
+    }
+
+    function shareInviteLink() {
+      haptic('light');
+      const code = appStatus.family.invite_code;
+      const botUser = 'BabySleepSyncBot'; // Будет получено с сервера или дефолтное
+      const text = `Привет! Подключайся к нашему трекеру сна малыша: введи код ${code}`;
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(text)}`);
+      } else {
+        copyFamilyCode();
+      }
+    }
+
+    async function joinFamilyAction() {
+      const code = document.getElementById('joinCodeInput').value.trim();
+      if (!code) return;
+      haptic('medium');
+
+      try {
+        const res = await fetch('/api/family/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: currentUserId,
+            invite_code: code
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          haptic('success');
+          alert('Вы успешно подключились к семье малыша!');
+          await fetchStatus();
+        } else {
+          alert(data.error || 'Код не найден');
+        }
+      } catch (e) {
+        alert('Ошибка подключения');
+      }
+    }
+
+    function renderFamilyMembers(members) {
+      const list = document.getElementById('familyMembersList');
+      list.innerHTML = '';
+      if (!members || members.length === 0) {
+        list.innerHTML = '<span class="text-gray-400">Пока подключен 1 родитель</span>';
+        return;
+      }
+      members.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-white/5';
+        row.innerHTML = `
+          <div class="flex items-center gap-1.5">
+            <i class="ph ph-user text-indigo-500"></i>
+            <span class="font-medium">${m.first_name || 'Родитель'}</span>
+          </div>
+          <span class="text-[10px] text-gray-400">${m.telegram_id === currentUserId ? 'Вы' : 'Партнер'}</span>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Вспомогательные функции времени
+    function formatTimeOnly(dt) {
+      return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatTimeInput(dt) {
+      const h = String(dt.getHours()).padStart(2, '0');
+      const m = String(dt.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+
+    function formatDateShort(dt) {
+      return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    }
+
+    // Старт
+    fetchStatus();
+    setInterval(fetchStatus, 30000); // Синхронизация между родителями каждые 30 секунд
+  </script>
+</body>
+</html>
