@@ -1,6 +1,6 @@
 import asyncio
 from main import (
-    app, serve_index, get_status, api_start_sleep, api_stop_sleep,
+    app, serve_index, health_check, get_status, api_start_sleep, api_stop_sleep,
     api_get_daily_stats, api_get_advice, api_get_weekly_stats,
     api_export_csv, api_export_text, StartSleepRequest, StopSleepRequest
 )
@@ -12,6 +12,11 @@ async def test_routes():
     print("Testing serve_index ...")
     r = await serve_index()
     print("✅ serve_index returned:", type(r))
+
+    print("Testing health_check (/health & /ping) ...")
+    h = await health_check()
+    assert h["status"] == "ok"
+    print("✅ health_check works:", h)
 
     print("Testing get_status ...")
     data = await get_status(telegram_id=99999, username="TestDad")

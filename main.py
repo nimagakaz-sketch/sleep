@@ -105,12 +105,21 @@ class JoinFamilyRequest(BaseModel):
 # API ЭНДПОИНТЫ FASTAPI
 # =====================================================================
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def serve_index():
-    """Отдает главную страницу Telegram Mini App."""
+    """Отдает главную страницу Telegram Mini App (поддерживает GET и HEAD для UptimeRobot)."""
     if os.path.exists("index.html"):
         return FileResponse("index.html")
     return HTMLResponse("<h1>Baby Sleep Tracker</h1>")
+
+@app.api_route("/health", methods=["GET", "HEAD", "POST"])
+@app.api_route("/ping", methods=["GET", "HEAD", "POST"])
+async def health_check():
+    """
+    Легковесный эндпоинт проверки работоспособности для UptimeRobot, Render и мониторинга.
+    Не нагружает сервер чтением файлов и возвращает 200 OK на любые типы запросов.
+    """
+    return {"status": "ok", "service": "baby_sleep_tracker"}
 
 @app.get("/api/status")
 async def get_status(telegram_id: int, username: Optional[str] = None):
