@@ -21,12 +21,13 @@ import uvicorn
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, FSInputFile
 from aiogram.enums import ParseMode
 
 import database as db
 import norms
 import analytics
+import time_utils
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("baby_tracker")
@@ -148,16 +149,17 @@ async def get_status(telegram_id: int, username: Optional[str] = None):
     next_sleep_info = None
     if not active_sleep:
         # Ребенок сейчас бодрствует
+        now_local = time_utils.get_local_now()
         if last_completed:
-            wake_dt = datetime.fromisoformat(last_completed["end_time"])
+            wake_dt = time_utils.to_local_datetime(last_completed["end_time"])
         else:
-            wake_dt = datetime.now() - timedelta(minutes=30)
+            wake_dt = now_local - timedelta(minutes=30)
             
         next_sleep_info = norms.calculate_next_sleep(
             wake_time=wake_dt,
             birth_date=birth_date,
             custom_wb_min=family.get("custom_wake_window_min"),
-            current_time=datetime.now()
+            current_time=now_local
         )
 
     return {
@@ -268,10 +270,11 @@ async def api_delete_sleep(sleep_id: int, family_id: int):
 @app.get("/api/stats/daily")
 async def api_get_daily_stats(family_id: int, date: Optional[str] = Query(None, alias="date")):
     """Возвращает подробную суточную сводку, расчет сна/бодрствования и 24ч таймлайн."""
+    now_local = time_utils.get_local_now()
     try:
-        target_day = dt_date.fromisoformat(date) if date else datetime.now().date()
+        target_day = dt_date.fromisoformat(date) if date else now_local.date()
     except Exception:
-        target_day = datetime.now().date()
+        target_day = now_local.date()
 
     family_info = await db.get_family_info(family_id)
     if not family_info:
@@ -287,7 +290,7 @@ async def api_get_daily_stats(family_id: int, date: Optional[str] = Query(None, 
         sleeps=sleeps,
         target_date=target_day,
         birth_date=birth_date,
-        now=datetime.now()
+        now=now_local
     )
     return summary
 
@@ -307,10 +310,11 @@ async def api_get_advice(family_id: int):
 @app.get("/api/stats/weekly")
 async def api_get_weekly_stats(family_id: int, end_date: Optional[str] = Query(None)):
     """Возвращает недельную статистику (7 дней), динамику и график сна."""
+    now_local = time_utils.get_local_now()
     try:
-        end_day = dt_date.fromisoformat(end_date) if end_date else datetime.now().date()
+        end_day = dt_date.fromisoformat(end_date) if end_date else now_local.date()
     except Exception:
-        end_day = datetime.now().date()
+        end_day = now_local.date()
 
     family_info = await db.get_family_info(family_id)
     if not family_info:
@@ -323,7 +327,6 @@ async def api_get_weekly_stats(family_id: int, end_date: Optional[str] = Query(N
 
     # Собираем данные за каждый из 7 дней
     daily_summaries = []
-    now = datetime.now()
     for i in range(6, -1, -1):
         target_day = end_day - timedelta(days=i)
         sleeps = await db.get_sleeps_for_day(family_id, target_day)
@@ -331,7 +334,7 @@ async def api_get_weekly_stats(family_id: int, end_date: Optional[str] = Query(N
             sleeps=sleeps,
             target_date=target_day,
             birth_date=birth_date,
-            now=now
+            now=now_local
         )
         daily_summaries.append(summary)
 
@@ -346,7 +349,8 @@ async def api_get_weekly_stats(family_id: int, end_date: Optional[str] = Query(N
 async def api_export_csv(family_id: int, days: int = 14):
     """Экспорт истории сна в CSV для врача/педиатра."""
     from fastapi.responses import Response
-    end_day = datetime.now().date()
+    now_local = time_utils.get_local_now()
+    end_day = now_local.date()
     start_day = end_day - timedelta(days=days)
     sleeps = await db.get_all_sleeps_for_period(family_id, start_day, end_day)
     csv_content = analytics.generate_csv_data(sleeps)
@@ -362,7 +366,8 @@ async def api_export_csv(family_id: int, days: int = 14):
 @app.get("/api/export/text")
 async def api_export_text(family_id: int):
     """Текстовая выжимка для пересылки педиатру в Telegram."""
-    end_day = datetime.now().date()
+    now_local = time_utils.get_local_now()
+    end_day = now_local.date()
     family_info = await db.get_family_info(family_id)
     if not family_info:
         raise HTTPException(status_code=404, detail="Семья не найдена")
@@ -375,11 +380,10 @@ async def api_export_text(family_id: int):
     age_info = norms.calculate_age_info(birth_date, end_day)
 
     daily_summaries = []
-    now = datetime.now()
     for i in range(6, -1, -1):
         target_day = end_day - timedelta(days=i)
         sleeps = await db.get_sleeps_for_day(family_id, target_day)
-        summary = analytics.calculate_daily_summary(sleeps, target_day, birth_date, now)
+        summary = analytics.calculate_daily_summary(sleeps, target_day, birth_date, now_local)
         daily_summaries.append(summary)
 
     weekly = analytics.calculate_weekly_summary(daily_summaries, end_day, birth_date)
@@ -471,31 +475,41 @@ async def cmd_start(message: types.Message):
 @dp.message(Command("status"))
 @dp.callback_query(F.data == "btn_status")
 async def cmd_status(event: types.Message | types.CallbackQuery):
-    """Отображает текущий статус малыша прямо в чате."""
+    """Отображает текущий статус малыша прямо в чате с разделением сна на день/ночь."""
     user_id = event.from_user.id
     user_info = await db.get_or_create_user(user_id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
+    baby_name = family.get("baby_name", "Сева")
     active = await db.get_active_sleep(family["id"])
     last_completed = await db.get_last_completed_sleep(family["id"])
 
     birth_date = dt_date.fromisoformat(family.get("baby_birth_date", DEFAULT_BIRTH_DATE))
-    now = datetime.now()
+    now = time_utils.get_local_now()
 
     if active:
-        start_dt = datetime.fromisoformat(active["start_time"])
+        start_dt = time_utils.to_local_datetime(active["start_time"])
         dur_min = int((now - start_dt).total_seconds() // 60)
         dur_str = analytics.format_duration(dur_min)
-        text = (
-            f"🌙 <b>Малыш сейчас спит!</b>\n"
-            f"Начало сна: {start_dt.strftime('%H:%M')}\n"
-            f"Длительность: <b>{dur_str}</b>\n"
-            f"Тип: {'Ночной' if active['is_night'] else 'Дневной'}"
+        sleep_label = time_utils.get_sleep_type_label(bool(active.get("is_night")), active.get("nap_number"))
+        status_text = (
+            f"🌙 <b>{baby_name} сейчас спит!</b>\n"
+            f"• Тип: <b>{sleep_label}</b>\n"
+            f"• Уснул в: <b>{time_utils.format_local_hm(start_dt)}</b> (МСК+4 / GMT+7)\n"
+            f"• Длительность: <b>{dur_str}</b>"
         )
     else:
         if last_completed:
-            wake_dt = datetime.fromisoformat(last_completed["end_time"])
+            wake_dt = time_utils.to_local_datetime(last_completed["end_time"])
+            last_sleep_start = time_utils.to_local_datetime(last_completed["start_time"])
+            last_dur_min = int((wake_dt - last_sleep_start).total_seconds() // 60)
+            last_sleep_info = (
+                f"\n• Последний сон: {'Ночной' if last_completed.get('is_night') else 'Дневной'} "
+                f"({time_utils.format_local_hm(last_sleep_start)} – {time_utils.format_local_hm(wake_dt)}, "
+                f"{analytics.format_duration(last_dur_min)})"
+            )
         else:
             wake_dt = now - timedelta(minutes=45)
+            last_sleep_info = ""
             
         next_info = norms.calculate_next_sleep(
             wake_time=wake_dt,
@@ -504,32 +518,64 @@ async def cmd_status(event: types.Message | types.CallbackQuery):
             current_time=now
         )
         awake_str = analytics.format_duration(next_info["awake_duration_min"])
-        target_time_str = datetime.fromisoformat(next_info["target_sleep_time"]).strftime("%H:%M")
+        target_time_str = time_utils.format_local_hm(next_info["target_sleep_time"])
 
-        text = (
-            f"☀️ <b>Малыш сейчас бодрствует</b>\n"
-            f"Бодрствует уже: <b>{awake_str}</b>\n"
-            f"Рекомендуемое укладывание: <b>~{target_time_str}</b> ({next_info['status_text']})\n"
-            f"Осталось времени: <b>{next_info['minutes_left']} мин</b>\n\n"
+        status_text = (
+            f"☀️ <b>{baby_name} сейчас бодрствует</b>\n"
+            f"• Проснулся в: <b>{time_utils.format_local_hm(wake_dt)}</b>\n"
+            f"• Бодрствует уже: <b>{awake_str}</b>\n"
+            f"• Окно укладывания: <b>~{target_time_str}</b> ({next_info['status_text']})\n"
+            f"• До сна осталось: <b>{next_info['minutes_left']} мин</b>"
+            f"{last_sleep_info}\n\n"
             f"💡 <i>{next_info['stage_desc']}</i>"
         )
 
+    # Добавляем подробную сводку за сегодня с разделением по дневному и ночному сну
+    today_local = now.date()
+    today_sleeps = await db.get_sleeps_for_day(family["id"], today_local)
+    daily_summary = analytics.calculate_daily_summary(
+        sleeps=today_sleeps,
+        target_date=today_local,
+        birth_date=birth_date,
+        now=now
+    )
+
+    day_naps_count = daily_summary["day_naps_count"]
+    day_naps_text = f"{day_naps_count} снов" if day_naps_count != 1 else "1 сон"
+    summary_block = (
+        f"\n\n📊 <b>Сводка за сегодня ({daily_summary['date_formatted']}):</b>\n"
+        f"• 🌙 Ночной сон: <b>{daily_summary['night_sleep_str']}</b>\n"
+        f"• ☀️ Дневной сон: <b>{daily_summary['day_sleep_str']}</b> ({day_naps_text})\n"
+        f"• 💤 Всего сна: <b>{daily_summary['total_sleep_str']}</b> (норма {daily_summary['age_info']['norm_total_sleep']}ч)\n"
+        f"• ⏳ Ср. бодрствование: <b>{daily_summary['avg_wb_str']}</b>"
+    )
+
+    full_text = status_text + summary_block
+
     if isinstance(event, types.CallbackQuery):
-        await event.message.answer(text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
+        await event.message.answer(full_text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
         await event.answer()
     else:
-        await event.answer(text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
+        await event.answer(full_text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
 
 @dp.message(Command("sleep"))
 @dp.callback_query(F.data == "btn_sleep")
 async def cmd_sleep(event: types.Message | types.CallbackQuery):
-    """Уложить спать прямо из чата Telegram."""
+    """Уложить спать прямо из чата Telegram с автоопределением дневного/ночного сна."""
     user_id = event.from_user.id
     user_info = await db.get_or_create_user(user_id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
+    baby_name = family.get("baby_name", "Сева")
 
-    await db.start_sleep(family["id"], user_id)
-    text = f"😴 <b>Сон начался в {datetime.now().strftime('%H:%M')}!</b>\nТаймер сна запущен."
+    res = await db.start_sleep(family["id"], user_id)
+    sleep_label = time_utils.get_sleep_type_label(bool(res.get("is_night")), res.get("nap_number"))
+    start_hm = time_utils.format_local_hm(res["start_time"])
+
+    text = (
+        f"😴 <b>{sleep_label} начался в {start_hm}!</b>\n\n"
+        f"👶 {baby_name} сладко спит. Таймер сна запущен.\n"
+        f"Когда малыш проснется, нажмите <b>«☀️ Проснулся»</b> или отправьте /wake."
+    )
 
     if isinstance(event, types.CallbackQuery):
         await event.message.answer(text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
@@ -540,29 +586,64 @@ async def cmd_sleep(event: types.Message | types.CallbackQuery):
 @dp.message(Command("wake"))
 @dp.callback_query(F.data == "btn_wake")
 async def cmd_wake(event: types.Message | types.CallbackQuery):
-    """Пробуждение прямо из чата."""
+    """Пробуждение прямо из чата с фиксацией длительности и типа сна."""
     user_id = event.from_user.id
     user_info = await db.get_or_create_user(user_id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
+    baby_name = family.get("baby_name", "Сева")
 
     res = await db.stop_sleep(family["id"], user_id)
     if res:
-        start_dt = datetime.fromisoformat(res["start_time"])
-        end_dt = datetime.fromisoformat(res["end_time"])
+        start_dt = time_utils.to_local_datetime(res["start_time"])
+        end_dt = time_utils.to_local_datetime(res["end_time"])
         dur_min = int((end_dt - start_dt).total_seconds() // 60)
+        sleep_label = "Ночной сон" if res.get("is_night") else "Дневной сон"
         text = (
-            f"☀️ <b>Малыш проснулся в {end_dt.strftime('%H:%M')}!</b>\n"
-            f"Длительность сна: <b>{analytics.format_duration(dur_min)}</b>.\n"
-            f"Таймер бодрствования запущен."
+            f"☀️ <b>{baby_name} проснулся в {time_utils.format_local_hm(end_dt)}!</b>\n\n"
+            f"• Тип: <b>{sleep_label}</b>\n"
+            f"• Длительность сна: <b>{analytics.format_duration(dur_min)}</b>\n"
+            f"• Начало: {time_utils.format_local_hm(start_dt)} → Конец: {time_utils.format_local_hm(end_dt)}\n\n"
+            f"⏱ Таймер бодрствования (ВБ) запущен. Норма для возраста: <b>75–90 мин</b>."
         )
     else:
-        text = "ℹ️ Активный сон не был найден, но время бодрствования отсчитывается!"
+        text = "ℹ️ Активный сон не был найден, но время бодрствования зафиксировано!"
 
     if isinstance(event, types.CallbackQuery):
         await event.message.answer(text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
-        await event.answer("Доброе утро!")
+        await event.answer("С добрым утром!")
     else:
         await event.answer(text, reply_markup=get_webapp_keyboard(family["invite_code"]), parse_mode=ParseMode.HTML)
+
+@dp.message(Command("backup"))
+async def cmd_backup(message: types.Message):
+    """Отправляет резервную копию базы данных SQLite прямо в чат Telegram."""
+    if os.path.exists("sleep_tracker.db"):
+        now_str = time_utils.get_local_now().strftime("%Y%m%d_%H%M")
+        doc = FSInputFile("sleep_tracker.db", filename=f"sleep_tracker_backup_{now_str}.db")
+        await message.answer_document(
+            doc,
+            caption="💾 <b>Резервная копия базы данных трекера сна.</b>\n"
+                    "Все ваши данные сохранены! Если хостинг перезапустится, "
+                    "вы можете просто отправить этот файл боту для мгновенного восстановления.",
+            parse_mode=ParseMode.HTML
+        )
+    else:
+        await message.answer("⚠️ Файл базы данных пока не существует.")
+
+@dp.message(F.document)
+async def handle_document_restore(message: types.Message):
+    """Позволяет восстановить базу данных из отправленного .db файла."""
+    doc = message.document
+    if doc.file_name and doc.file_name.endswith(".db"):
+        try:
+            file_info = await bot.get_file(doc.file_id)
+            await bot.download_file(file_info.file_path, destination="sleep_tracker.db")
+            await message.answer(
+                "✅ <b>База данных успешно восстановлена!</b>\nВсе записи снов снова активны.",
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            await message.answer(f"❌ Ошибка при восстановлении: {e}")
 
 @dp.message(Command("family"))
 async def cmd_family(message: types.Message):
@@ -592,7 +673,7 @@ async def sleep_reminder_worker():
     while True:
         try:
             families = await db.get_all_families_for_reminders()
-            now = datetime.now()
+            now = time_utils.get_local_now()
 
             for fam in families:
                 fam_id = fam["id"]
@@ -605,7 +686,7 @@ async def sleep_reminder_worker():
                 if not last_completed:
                     continue
 
-                wake_dt = datetime.fromisoformat(last_completed["end_time"])
+                wake_dt = time_utils.to_local_datetime(last_completed["end_time"])
                 birth_date = dt_date.fromisoformat(fam.get("baby_birth_date", DEFAULT_BIRTH_DATE))
 
                 next_info = norms.calculate_next_sleep(
@@ -623,7 +704,7 @@ async def sleep_reminder_worker():
                     notified_winddown_cache.add(wake_key)
                     members = (await db.get_family_info(fam_id)).get("members", [])
                     awake_str = analytics.format_duration(next_info["awake_duration_min"])
-                    target_time = datetime.fromisoformat(next_info["target_sleep_time"]).strftime("%H:%M")
+                    target_time = time_utils.format_local_hm(next_info["target_sleep_time"])
 
                     msg = (
                         f"⏰ <b>Время готовиться ко сну!</b>\n\n"

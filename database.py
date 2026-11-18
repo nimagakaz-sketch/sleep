@@ -7,6 +7,7 @@ import aiosqlite
 import secrets
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
+import time_utils
 
 DB_PATH = "sleep_tracker.db"
 
@@ -74,7 +75,7 @@ async def get_or_create_user(
     default_birth_date: str = "2026-09-11"
 ) -> Dict[str, Any]:
     """Получает пользователя или регистрирует нового (создает семью или присоединяет к существующей)."""
-    now_iso = datetime.now().isoformat()
+    now_iso = time_utils.get_local_now().isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         
@@ -244,19 +245,17 @@ async def start_sleep(
     start_time_iso: Optional[str] = None,
     is_night: Optional[int] = None
 ) -> Dict[str, Any]:
-    """Начинает новую сессию сна."""
-    now = datetime.now()
+    """Начинает новую сессию сна с автоматическим определением день/ночь в часовом поясе пользователя."""
+    now = time_utils.get_local_now()
     if not start_time_iso:
         start_time_iso = now.isoformat()
     else:
-        # Валидация формата
-        start_dt = datetime.fromisoformat(start_time_iso)
+        start_dt = time_utils.to_local_datetime(start_time_iso)
         start_time_iso = start_dt.isoformat()
         
-    # Если ночь не указана, автоматически определяем: между 21:00 и 06:00 - ночной сон
+    # Автоматическое определение дневной / ночной сон по локальному времени (20:30 - 07:30 = ночь)
     if is_night is None:
-        hour = datetime.fromisoformat(start_time_iso).hour
-        is_night = 1 if (hour >= 21 or hour < 7) else 0
+        is_night = 1 if time_utils.is_night_sleep(start_time_iso) else 0
 
     now_iso = now.isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
@@ -267,6 +266,17 @@ async def start_sleep(
             "UPDATE sleep_sessions SET end_time = ?, ended_by_user_id = ? WHERE family_id = ? AND end_time IS NULL",
             (start_time_iso, user_id, family_id)
         )
+
+        # Вычисляем номер дневного сна за сегодня (если это дневной сон)
+        nap_number = None
+        if not is_night:
+            day_str = start_time_iso.split("T")[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM sleep_sessions WHERE family_id = ? AND is_night = 0 AND start_time LIKE ?",
+                (family_id, f"{day_str}%")
+            ) as cnt_cur:
+                cnt_row = await cnt_cur.fetchone()
+                nap_number = (cnt_row[0] if cnt_row else 0) + 1
         
         cursor = await db.execute(
             """
@@ -280,7 +290,9 @@ async def start_sleep(
         
         async with db.execute("SELECT * FROM sleep_sessions WHERE id = ?", (session_id,)) as cur:
             row = await cur.fetchone()
-            return dict(row)
+            res = dict(row)
+            res["nap_number"] = nap_number
+            return res
 
 async def stop_sleep(
     family_id: int,
@@ -288,11 +300,11 @@ async def stop_sleep(
     end_time_iso: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """Завершает текущую активную сессию сна (малыш проснулся)."""
-    now = datetime.now()
+    now = time_utils.get_local_now()
     if not end_time_iso:
         end_time_iso = now.isoformat()
     else:
-        end_dt = datetime.fromisoformat(end_time_iso)
+        end_dt = time_utils.to_local_datetime(end_time_iso)
         end_time_iso = end_dt.isoformat()
 
     async with aiosqlite.connect(DB_PATH) as db:
@@ -327,17 +339,16 @@ async def add_manual_sleep(
     notes: Optional[str] = None
 ) -> Dict[str, Any]:
     """Добавляет сон вручную за прошедший период."""
-    start_dt = datetime.fromisoformat(start_time_iso)
-    end_dt = datetime.fromisoformat(end_time_iso)
+    start_dt = time_utils.to_local_datetime(start_time_iso)
+    end_dt = time_utils.to_local_datetime(end_time_iso)
     
     if end_dt <= start_dt:
         raise ValueError("Время окончания сна должно быть позже времени начала")
         
     if is_night is None:
-        hour = start_dt.hour
-        is_night = 1 if (hour >= 21 or hour < 7) else 0
+        is_night = 1 if time_utils.is_night_sleep(start_dt) else 0
         
-    now_iso = datetime.now().isoformat()
+    now_iso = time_utils.get_local_now().isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
