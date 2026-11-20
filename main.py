@@ -28,6 +28,7 @@ import database as db
 import norms
 import analytics
 import time_utils
+import development
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("baby_tracker")
@@ -101,6 +102,13 @@ class JoinFamilyRequest(BaseModel):
     telegram_id: int
     invite_code: str
 
+class WhitelistAddRequest(BaseModel):
+    telegram_id: int
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    notes: Optional[str] = None
+    admin_id: int
+
 
 # =====================================================================
 # API ЭНДПОИНТЫ FASTAPI
@@ -145,6 +153,8 @@ async def get_status(telegram_id: int, username: Optional[str] = None):
 
     age_info = norms.calculate_age_info(birth_date)
     expert_advice = norms.get_age_advice(birth_date)
+    is_allowed = await db.is_user_allowed(telegram_id)
+    is_superadmin = (telegram_id == db.SUPERADMIN_ID)
 
     next_sleep_info = None
     if not active_sleep:
@@ -163,6 +173,9 @@ async def get_status(telegram_id: int, username: Optional[str] = None):
         )
 
     return {
+        "is_allowed": is_allowed,
+        "is_superadmin": is_superadmin,
+        "current_user_id": telegram_id,
         "is_sleeping": bool(active_sleep),
         "active_sleep": active_sleep,
         "last_completed_sleep": last_completed,
@@ -414,6 +427,55 @@ async def api_join_family(req: JoinFamilyRequest):
         return {"success": False, "error": "Код семьи не найден. Проверьте правильность ввода."}
     return {"success": True, "family": family}
 
+@app.get("/api/development")
+async def api_get_development(family_id: int, week: Optional[int] = None):
+    """Возвращает информацию о развитии, упражнениях по неделям и скачках роста."""
+    family_info = await db.get_family_info(family_id)
+    if not family_info:
+        raise HTTPException(status_code=404, detail="Семья не найдена")
+    try:
+        birth_date = dt_date.fromisoformat(family_info["baby_birth_date"])
+    except Exception:
+        birth_date = dt_date.fromisoformat(DEFAULT_BIRTH_DATE)
+    
+    now_local = time_utils.get_local_now().date()
+    week_val = week if isinstance(week, int) else None
+    dev_data = development.get_development_info(
+        birth_date=birth_date,
+        target_date=now_local,
+        week_override=week_val
+    )
+    return dev_data
+
+@app.get("/api/admin/whitelist")
+async def api_get_whitelist(admin_id: int = Query(...)):
+    """Возвращает список пользователей белого списка (только для владельца бота)."""
+    if admin_id != db.SUPERADMIN_ID:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только для владельца бота.")
+    return await db.get_whitelist()
+
+@app.post("/api/admin/whitelist")
+async def api_add_whitelist(req: WhitelistAddRequest):
+    """Добавляет пользователя в белый список (только для владельца бота)."""
+    if req.admin_id != db.SUPERADMIN_ID:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только для владельца бота.")
+    row = await db.add_to_whitelist(
+        telegram_id=req.telegram_id,
+        username=req.username,
+        full_name=req.full_name,
+        added_by=req.admin_id,
+        notes=req.notes
+    )
+    return {"success": True, "user": row}
+
+@app.delete("/api/admin/whitelist/{target_id}")
+async def api_delete_whitelist(target_id: int, admin_id: int = Query(...)):
+    """Удаляет пользователя из белого списка (только для владельца бота)."""
+    if admin_id != db.SUPERADMIN_ID:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только для владельца бота.")
+    success = await db.remove_from_whitelist(target_id)
+    return {"success": success}
+
 
 # =====================================================================
 # TELEGRAM БОТ (AIOGRAM 3)
@@ -436,9 +498,118 @@ def get_webapp_keyboard(user_family_code: str = "") -> InlineKeyboardMarkup:
         ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+async def check_access_or_reply(event: types.Message | types.CallbackQuery) -> bool:
+    """Проверяет доступ пользователя по белому списку."""
+    user_id = event.from_user.id
+    if not await db.is_user_allowed(user_id):
+        text = (
+            "🔒 <b>Доступ ограничен</b>\n\n"
+            "Этот бот — приватный семейный трекер сна Севы.\n"
+            f"Ваш Telegram ID: <code>{user_id}</code>\n\n"
+            "Чтобы получить доступ, напишите владельцу бота: @youngyannniii"
+        )
+        if isinstance(event, types.CallbackQuery):
+            await event.message.answer(text, parse_mode=ParseMode.HTML)
+            await event.answer("Доступ ограничен", show_alert=True)
+        else:
+            await event.answer(text, parse_mode=ParseMode.HTML)
+        return False
+    return True
+
+@dp.message(Command("admin"))
+async def cmd_admin(message: types.Message):
+    """Панель администратора (только для владельца бота)."""
+    if message.from_user.id != db.SUPERADMIN_ID:
+        await message.answer("🔒 Доступ запрещен. Эта команда доступна только владельцу бота (@youngyannniii).")
+        return
+
+    whitelist = await db.get_whitelist()
+    lines = ["🛡 <b>Панель управления доступом к боту</b>\n"]
+    lines.append(f"Всего пользователей в белом списке: <b>{len(whitelist)}</b>\n")
+    for u in whitelist:
+        tid = u["telegram_id"]
+        uname = f"@{u['username']}" if u.get("username") else "без username"
+        fname = u.get("full_name") or "Пользователь"
+        note = f" ({u['notes']})" if u.get("notes") else ""
+        crown = " 👑" if tid == db.SUPERADMIN_ID else ""
+        lines.append(f"• <code>{tid}</code> — <b>{fname}</b> [{uname}]{note}{crown}")
+
+    lines.append("\n<b>Команды управления:</b>")
+    lines.append("➕ <code>/add_user &lt;id&gt; [имя/ник]</code> — выдать доступ")
+    lines.append("➖ <code>/remove_user &lt;id&gt;</code> — закрыть доступ")
+
+    await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
+
+@dp.message(Command("add_user"))
+async def cmd_add_user(message: types.Message):
+    """Добавить пользователя в белый список: /add_user <id> [имя]."""
+    if message.from_user.id != db.SUPERADMIN_ID:
+        await message.answer("🔒 Доступ запрещен.")
+        return
+
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("ℹ️ Использование: <code>/add_user &lt;telegram_id&gt; [имя или ник]</code>", parse_mode=ParseMode.HTML)
+        return
+
+    try:
+        target_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Ошибка: Telegram ID должен состоять только из цифр.")
+        return
+
+    name_or_note = parts[2] if len(parts) > 2 else f"ID {target_id}"
+    username = name_or_note if name_or_note.startswith("@") else None
+
+    await db.add_to_whitelist(
+        telegram_id=target_id,
+        username=username,
+        full_name=name_or_note,
+        added_by=message.from_user.id,
+        notes="Добавлен через Telegram"
+    )
+
+    await message.answer(
+        f"✅ <b>Пользователь добавлен в белый список!</b>\n\n"
+        f"• Telegram ID: <code>{target_id}</code>\n"
+        f"• Имя/Примечание: <b>{name_or_note}</b>\n\n"
+        f"Теперь этот пользователь может полноценно открывать бота и WebApp.",
+        parse_mode=ParseMode.HTML
+    )
+
+@dp.message(Command("remove_user"))
+async def cmd_remove_user(message: types.Message):
+    """Удалить пользователя из белого списка: /remove_user <id>."""
+    if message.from_user.id != db.SUPERADMIN_ID:
+        await message.answer("🔒 Доступ запрещен.")
+        return
+
+    parts = message.text.split()
+    if len(parts) < 2:
+        await message.answer("ℹ️ Использование: <code>/remove_user &lt;telegram_id&gt;</code>", parse_mode=ParseMode.HTML)
+        return
+
+    try:
+        target_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Ошибка: Telegram ID должен состоять только из цифр.")
+        return
+
+    if target_id == db.SUPERADMIN_ID:
+        await message.answer("⚠️ Вы не можете удалить самого себя из списка администраторов.")
+        return
+
+    ok = await db.remove_from_whitelist(target_id)
+    if ok:
+        await message.answer(f"✅ Пользователь <code>{target_id}</code> удален из белого списка. Доступ закрыт.", parse_mode=ParseMode.HTML)
+    else:
+        await message.answer(f"ℹ️ Пользователь <code>{target_id}</code> не найден в белом списке.", parse_mode=ParseMode.HTML)
+
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     """Обработчик команды /start."""
+    if not await check_access_or_reply(message):
+        return
     args = message.text.split()[1] if len(message.text.split()) > 1 else None
     invite_code = None
     if args:
@@ -476,6 +647,8 @@ async def cmd_start(message: types.Message):
 @dp.callback_query(F.data == "btn_status")
 async def cmd_status(event: types.Message | types.CallbackQuery):
     """Отображает текущий статус малыша прямо в чате с разделением сна на день/ночь."""
+    if not await check_access_or_reply(event):
+        return
     user_id = event.from_user.id
     user_info = await db.get_or_create_user(user_id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
@@ -562,6 +735,8 @@ async def cmd_status(event: types.Message | types.CallbackQuery):
 @dp.callback_query(F.data == "btn_sleep")
 async def cmd_sleep(event: types.Message | types.CallbackQuery):
     """Уложить спать прямо из чата Telegram с автоопределением дневного/ночного сна."""
+    if not await check_access_or_reply(event):
+        return
     user_id = event.from_user.id
     user_info = await db.get_or_create_user(user_id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
@@ -587,6 +762,8 @@ async def cmd_sleep(event: types.Message | types.CallbackQuery):
 @dp.callback_query(F.data == "btn_wake")
 async def cmd_wake(event: types.Message | types.CallbackQuery):
     """Пробуждение прямо из чата с фиксацией длительности и типа сна."""
+    if not await check_access_or_reply(event):
+        return
     user_id = event.from_user.id
     user_info = await db.get_or_create_user(user_id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
@@ -617,6 +794,8 @@ async def cmd_wake(event: types.Message | types.CallbackQuery):
 @dp.message(Command("backup"))
 async def cmd_backup(message: types.Message):
     """Отправляет резервную копию базы данных прямо в чат Telegram."""
+    if not await check_access_or_reply(message):
+        return
     now_str = time_utils.get_local_now().strftime("%Y%m%d_%H%M")
     backup_file = f"sleep_tracker_backup_{now_str}.db"
     try:
@@ -647,6 +826,8 @@ async def cmd_backup(message: types.Message):
 @dp.message(F.document)
 async def handle_document_restore(message: types.Message):
     """Позволяет восстановить базу данных из отправленного .db файла (сохраняет в Neon PostgreSQL)."""
+    if not await check_access_or_reply(message):
+        return
     doc = message.document
     if doc.file_name and doc.file_name.endswith(".db"):
         try:
@@ -670,6 +851,8 @@ async def handle_document_restore(message: types.Message):
 @dp.message(Command("family"))
 async def cmd_family(message: types.Message):
     """Показывает код семьи для подключения второго родителя."""
+    if not await check_access_or_reply(message):
+        return
     user_info = await db.get_or_create_user(message.from_user.id, default_birth_date=DEFAULT_BIRTH_DATE)
     family = user_info["family"]
     code = family["invite_code"]

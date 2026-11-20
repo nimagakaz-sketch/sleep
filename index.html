@@ -88,7 +88,7 @@
     .bar {
       pointer-events: auto;
       position: relative;
-      width: calc(843 * var(--u));
+      width: calc(880 * var(--u));
       height: calc(190 * var(--u));
       touch-action: none;
       cursor: grab;
@@ -148,9 +148,9 @@
     }
     .lens .tabs {
       inset: auto;
-      left: calc(-22.5 * var(--u) - var(--x) * 273 * var(--u) - var(--tx) * var(--u) - 1px);
+      left: calc(-21 * var(--u) - var(--x) * 214 * var(--u) - var(--tx) * var(--u) - 1px);
       top: calc(-12 * var(--u) - 1px);
-      width: calc(843 * var(--u));
+      width: calc(880 * var(--u));
       height: calc(190 * var(--u));
     }
     .base {
@@ -161,7 +161,7 @@
       position: absolute;
       left: calc(-60 * var(--u));
       top: calc(-40 * var(--u));
-      width: calc(963 * var(--u));
+      width: calc(1000 * var(--u));
       height: calc(270 * var(--u));
       pointer-events: none;
       background: rgba(38, 38, 42, 0.72);
@@ -172,8 +172,8 @@
     .thumb, .solid {
       position: absolute;
       top: calc(12 * var(--u));
-      left: calc(22.5 * var(--u) + var(--x) * 273 * var(--u));
-      width: calc(252 * var(--u));
+      left: calc(21 * var(--u) + var(--x) * 214 * var(--u));
+      width: calc(196 * var(--u));
       height: calc(165 * var(--u));
       translate: calc(var(--tx) * var(--u)) 0;
       scale: var(--sx) var(--sy);
@@ -183,7 +183,7 @@
       position: absolute;
       inset: 0;
       display: grid;
-      grid-template-columns: repeat(3, calc(273 * var(--u)));
+      grid-template-columns: repeat(4, calc(214 * var(--u)));
       padding: 0 calc(12 * var(--u));
       pointer-events: none;
     }
@@ -194,7 +194,7 @@
       align-items: center;
       justify-content: center;
       gap: calc(8 * var(--u));
-      font-size: calc(26 * var(--u));
+      font-size: calc(22 * var(--u));
       font-weight: 500;
       letter-spacing: -0.01em;
       line-height: 1.2;
@@ -211,7 +211,7 @@
       font-weight: 600;
     }
     .tab .ico {
-      height: calc(64 * var(--u));
+      height: calc(56 * var(--u));
       display: grid;
       place-items: center;
     }
@@ -280,7 +280,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="setTabBarIndex(2)" class="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
+      <button onclick="setTabBarIndex(3)" class="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 flex items-center justify-center text-white/70 active:scale-95 transition">
         <i class="ph ph-gear text-lg"></i>
       </button>
     </div>
@@ -651,7 +651,118 @@
     </section>
 
     <!-- ======================================================================
-         TAB 2: МАЛЫШ И СЕМЬЯ (SETTINGS & FAMILY ACCESS)
+         TAB 2: РАЗВИТИЕ (DEVELOPMENT, ACTIVITIES, WONDER WEEKS)
+         ====================================================================== -->
+    <section id="tab-dev" class="view-section space-y-4 hidden">
+
+      <!-- WEEK SELECTOR / HEADER -->
+      <div class="apple-card p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button onclick="changeDevWeek(-1)" class="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 flex items-center justify-center text-white active:scale-95 transition">
+            <i class="ph ph-caret-left text-lg"></i>
+          </button>
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="devWeekLabel" class="font-bold text-[17px] text-white">...</span>
+              <span id="devDaysRangeBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.08] text-white/70 font-medium border border-white/10">...</span>
+            </div>
+            <div id="devBabyAgeText" class="text-[12px] text-white/40">Возраст малыша</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="devCurrentWeekBtn" onclick="resetToActualWeek()" class="hidden px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[11px] font-semibold active:scale-95 transition">
+            Текущая
+          </button>
+          <button onclick="changeDevWeek(1)" class="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 flex items-center justify-center text-white active:scale-95 transition">
+            <i class="ph ph-caret-right text-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- WONDER WEEKS GROWTH SPURT CARD -->
+      <div class="apple-card p-5 space-y-3.5 relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <div class="text-[12px] font-semibold uppercase tracking-wider text-white/45 flex items-center gap-1.5">
+            <i class="ph ph-sparkle text-amber-400"></i> Скачок роста (Wonder Weeks)
+          </div>
+          <span id="devSpurtBadge" class="text-[11px] px-2.5 py-0.5 rounded-full font-semibold border bg-white/[0.08] text-white/70 border-white/10">Загрузка...</span>
+        </div>
+
+        <div class="space-y-1">
+          <h3 id="devSpurtTitle" class="text-base font-bold text-white tracking-tight"></h3>
+          <p id="devSpurtCountdown" class="text-[13px] font-medium text-amber-300/90"></p>
+        </div>
+
+        <p id="devSpurtDesc" class="text-[13px] text-white/70 leading-relaxed font-normal"></p>
+
+        <!-- Symptoms Box -->
+        <div class="p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] space-y-2">
+          <div class="text-[12px] font-semibold text-white/80 flex items-center gap-1.5">
+            <i class="ph ph-warning-circle text-amber-400 text-sm"></i> Как проявляется в поведении малыша:
+          </div>
+          <ul id="devSpurtSymptoms" class="text-[12px] text-white/65 space-y-1.5 pl-4 list-disc marker:text-amber-400/80">
+            <!-- Dynamic symptoms -->
+          </ul>
+        </div>
+
+        <!-- Parent Advice Box -->
+        <div class="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 space-y-1.5">
+          <div class="text-[12px] font-semibold text-purple-300 flex items-center gap-1.5">
+            <i class="ph ph-heart text-purple-400"></i> Совет родителям:
+          </div>
+          <p id="devSpurtAdvice" class="text-[12px] text-purple-200/80 leading-relaxed font-normal"></p>
+        </div>
+      </div>
+
+      <!-- WEEK MAIN FOCUS -->
+      <div class="apple-card p-4 space-y-1.5">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-white/45">Главный навык этой недели</div>
+        <p id="devWeekFocus" class="text-[13px] text-white/80 leading-relaxed font-normal"></p>
+      </div>
+
+      <!-- TUMMY TIME HELPER TIMER -->
+      <div class="apple-card p-4 space-y-3 bg-gradient-to-br from-indigo-950/40 to-black/40 border border-indigo-500/20">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+              <i class="ph ph-timer text-lg"></i>
+            </div>
+            <div>
+              <div class="text-[13px] font-bold text-white">Таймер выкладывания на животик</div>
+              <div class="text-[11px] text-white/40">Подход 3–5 минут с виброоткликом</div>
+            </div>
+          </div>
+          <div id="tummyTimerDisplay" class="text-xl font-mono font-bold text-indigo-300">03:00</div>
+        </div>
+        <div class="flex gap-2">
+          <button id="tummyTimerStartBtn" onclick="toggleTummyTimer()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[13px] active:scale-95 transition">
+            Старт таймера
+          </button>
+          <button onclick="resetTummyTimer(180)" class="px-3 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white text-[12px] font-medium active:scale-95 transition">
+            3 мин
+          </button>
+          <button onclick="resetTummyTimer(300)" class="px-3 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white text-[12px] font-medium active:scale-95 transition">
+            5 мин
+          </button>
+        </div>
+      </div>
+
+      <!-- EXERCISES LIST -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <div class="text-[12px] font-semibold uppercase tracking-wider text-white/45">Рекомендуемые активности на день</div>
+          <span class="text-[11px] text-white/40 font-medium">С точным временем</span>
+        </div>
+
+        <div id="devExercisesContainer" class="space-y-3">
+          <!-- Dynamic exercise cards -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================
+         TAB 3: МАЛЫШ И СЕМЬЯ (SETTINGS & FAMILY ACCESS)
          ====================================================================== -->
     <section id="tab-settings" class="view-section space-y-4 hidden">
       
@@ -729,6 +840,47 @@
 
       </div>
 
+      <!-- ADMIN ACCESS PANEL (EXCLUSIVE FOR SUPERADMIN @youngyannniii / ID 374188835) -->
+      <div id="adminPanelCard" class="apple-card p-5 space-y-4 border border-purple-500/30 hidden">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-base">
+              <i class="ph ph-shield-check"></i>
+            </div>
+            <div>
+              <div class="text-[14px] font-bold text-white tracking-tight">Мини-Админка доступа</div>
+              <div class="text-[11px] text-white/40">Только для владельца бота (@youngyannniii)</div>
+            </div>
+          </div>
+          <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-semibold border border-purple-500/30">Владелец</span>
+        </div>
+
+        <p class="text-[12px] text-white/60 leading-relaxed font-normal">
+          Бот работает в приватном режиме. Любой посторонний человек не сможет им пользоваться, пока вы лично не впишете его Telegram ID в белый список.
+        </p>
+
+        <!-- Form Add -->
+        <div class="p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] space-y-2.5">
+          <div class="text-[12px] font-semibold text-white/80">Добавить человека в доступ:</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input type="number" id="adminNewUserId" placeholder="Telegram ID (напр. 12345678)" class="px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[13px] outline-none font-mono">
+            <input type="text" id="adminNewUserName" placeholder="Имя или @username" class="px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[13px] outline-none">
+          </div>
+          <input type="text" id="adminNewUserNote" placeholder="Примечание (напр. Бабушка, Няня)" class="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[13px] outline-none">
+          <button onclick="adminAddUserAction()" class="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-[13px] active:scale-95 transition">
+            + Разрешить доступ к боту
+          </button>
+        </div>
+
+        <!-- Whitelist users list -->
+        <div class="pt-1 space-y-2">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-white/40">Пользователи с доступом:</div>
+          <div id="adminWhitelistContainer" class="space-y-1.5">
+            <!-- Dynamic whitelist items -->
+          </div>
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -764,7 +916,16 @@
           </span>
           <span>Сводка</span>
         </button>
-        <button class="tab" aria-label="Малыш" onclick="setTabBarIndex(2)">
+        <button class="tab" aria-label="Развитие" onclick="setTabBarIndex(2)">
+          <span class="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              <circle cx="12" cy="12" r="4"/>
+            </svg>
+          </span>
+          <span>Развитие</span>
+        </button>
+        <button class="tab" aria-label="Малыш" onclick="setTabBarIndex(3)">
           <span class="ico">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -777,6 +938,26 @@
         </button>
       </div>
       <div class="glass thumb" id="thumb"><div class="lens" id="lens"></div></div>
+    </div>
+  </div>
+
+  <!-- ACCESS RESTRICTED SCREEN (FOR UNAUTHORIZED USERS) -->
+  <div id="accessDeniedScreen" class="fixed inset-0 z-50 bg-[#121214] flex flex-col items-center justify-center p-6 text-center space-y-5 hidden">
+    <div class="w-16 h-16 rounded-full bg-red-500/15 border border-red-500/25 flex items-center justify-center text-3xl">
+      🔒
+    </div>
+    <div class="space-y-2 max-w-xs">
+      <h2 class="text-xl font-bold text-white tracking-tight">Доступ ограничен</h2>
+      <p class="text-[14px] text-white/60 leading-relaxed font-normal">
+        Этот трекер сна малыша Севы — приватный. Пользоваться им могут только авторизованные члены семьи.
+      </p>
+    </div>
+    <div class="p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-xs text-white/60 space-y-2 max-w-xs text-left w-full">
+      <div>Ваш Telegram ID: <b id="deniedTelegramId" class="text-white font-mono">...</b></div>
+      <div class="text-white/40">Для получения доступа обратитесь к владельцу бота:</div>
+      <a href="https://t.me/youngyannniii" target="_blank" class="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-semibold text-[13px]">
+        <i class="ph ph-telegram-logo"></i> @youngyannniii
+      </a>
     </div>
   </div>
 
@@ -1056,19 +1237,19 @@
     }
 
     function ptr(e) {
-      const rc = tabsEl.getBoundingClientRect(), w = tabs[0].offsetWidth, pad = (rc.width - w * 3) / 2;
+      const rc = tabsEl.getBoundingClientRect(), w = tabs[0].offsetWidth, pad = (rc.width - w * 4) / 2;
       return (e.clientX - rc.left - pad) / w;
     }
 
     function place(p, now) {
       const raw = p - 0.5 - grab;
-      target = raw < 0 ? raw * 0.3 : raw > 2 ? 2 + (raw - 2) * 0.3 : raw;
+      target = raw < 0 ? raw * 0.3 : raw > 3 ? 3 + (raw - 3) * 0.3 : raw;
       if (pT) {
         const dt = Math.max(0.008, (now - pT) / 1000);
         pV += ((raw - pRaw) / dt - pV) * 0.35;
       }
       pRaw = raw; pT = now;
-      highlight(clamp(Math.round(raw), 0, 2));
+      highlight(clamp(Math.round(raw), 0, 3));
     }
 
     bar.addEventListener('pointerdown', e => {
@@ -1089,7 +1270,7 @@
       bar.classList.remove('down');
       if (e.timeStamp - pT > 90) pV = 0;
       pV = clamp(pV, -9, 9);
-      const dest = clamp(Math.round(pRaw + pV * 0.1), 0, 2);
+      const dest = clamp(Math.round(pRaw + pV * 0.1), 0, 3);
       target = dest;
       setActive(dest);
       vel += pV * 0.22;
@@ -1145,31 +1326,31 @@
       bar.style.setProperty('--x', cur.toFixed(4));
 
       const sm = (v, m, K) => v <= m - K ? v : m - K * Math.exp(-(v - (m - K)) / K);
-      const cx = 12 + cur * 273 + 136.5;
-      const horiz = w => [-sm(-(cx - w / 2), 48, 30), sm(cx + w / 2, 891, 30)];
+      const cx = 12 + cur * 214 + 107;
+      const horiz = w => [-sm(-(cx - w / 2), 48, 30), sm(cx + w / 2, 928, 30)];
       if (Math.abs(vel) > 0.6) dirv = Math.sign(vel);
       const jel = clamp((cur - lag) * dirv, -0.55, 0.55);
       let sxv = s * (1 + st) * (1 + 0.48 * jel) * (1 - 0.45 * zz), syv = sy * (1 + zz);
       sxv = Math.min(sxv, 1.38);
-      let [Lc, Rc] = horiz(252 * sxv);
-      const cmp = Math.max(0, 1 - (Rc - Lc) / (252 * sxv));
+      let [Lc, Rc] = horiz(196 * sxv);
+      const cmp = Math.max(0, 1 - (Rc - Lc) / (196 * sxv));
       vel *= 1 - Math.min(0.3, cmp * 4 * dt);
       syv *= 1 + 0.45 * cmp;
       const h0 = 165 * syv, h1 = sm(h0, 214, 14);
       sxv *= Math.sqrt(h0 / h1);
       syv = h1 / 165;
-      [Lc, Rc] = horiz(252 * sxv);
+      [Lc, Rc] = horiz(196 * sxv);
       bar.style.setProperty('--tx', ((Lc + Rc) / 2 - cx).toFixed(3));
-      bar.style.setProperty('--sx', ((Rc - Lc) / 252).toFixed(4));
+      bar.style.setProperty('--sx', ((Rc - Lc) / 196).toFixed(4));
       bar.style.setProperty('--sy', syv.toFixed(4));
       bar.style.setProperty('--p', clamp(g, 0, 1).toFixed(3));
 
       {
-        const U = bar.offsetWidth / 843, cxm = (Lc + Rc) / 2, r = 82.5 * syv, cy = 95, ex = r - cy;
+        const U = bar.offsetWidth / 880, cxm = (Lc + Rc) / 2, r = 82.5 * syv, cy = 95, ex = r - cy;
         let d = '';
         if (ex > 1.5) {
           const OX = 60, OY = 40, f = (x, y) => ((x + OX) * U).toFixed(1) + ' ' + ((y + OY) * U).toFixed(1);
-          const FLAT0 = 95, FLAT1 = 748;
+          const FLAT0 = 95, FLAT1 = 785;
           const phi0 = Math.asin(cy / r), hc = Math.sqrt(r * r - cy * cy);
           const build = (k, side, vert) => {
             const phi1 = Math.asin(Math.min(1, (cy + k * ex) / r)), cc = side > 0 ? Rc - r : Lc + r;
@@ -1226,7 +1407,7 @@
     };
 
     function switchTabByIndex(index) {
-      const tabNames = ['home', 'stats', 'settings'];
+      const tabNames = ['home', 'stats', 'dev', 'settings'];
       tabNames.forEach((t, n) => {
         const el = document.getElementById(`tab-${t}`);
         if (el) {
@@ -1242,6 +1423,12 @@
           loadStats(selectedStatsDate);
         } else {
           loadWeeklyStats(selectedStatsDate);
+        }
+      } else if (index === 2) {
+        loadDevelopment(currentDevWeek);
+      } else if (index === 3) {
+        if (appStatus?.is_superadmin) {
+          loadAdminWhitelist();
         }
       }
     }
@@ -1260,9 +1447,37 @@
         const res = await fetch(`/api/status?telegram_id=${currentUserId}&username=${encodeURIComponent(currentUserName)}`);
         if (!res.ok) throw new Error('Ошибка сети');
         appStatus = await res.json();
+
+        // Проверка доступа по белому списку
+        if (appStatus.is_allowed === false) {
+          const deniedIdEl = document.getElementById('deniedTelegramId');
+          if (deniedIdEl) deniedIdEl.innerText = currentUserId;
+          const deniedScreen = document.getElementById('accessDeniedScreen');
+          if (deniedScreen) deniedScreen.classList.remove('hidden');
+          return;
+        } else {
+          const deniedScreen = document.getElementById('accessDeniedScreen');
+          if (deniedScreen) deniedScreen.classList.add('hidden');
+        }
+
+        // Показ мини-админки только для владельца (@youngyannniii)
+        const adminCard = document.getElementById('adminPanelCard');
+        if (adminCard) {
+          if (appStatus.is_superadmin) {
+            adminCard.classList.remove('hidden');
+            loadAdminWhitelist();
+          } else {
+            adminCard.classList.add('hidden');
+          }
+        }
+
         renderStatus();
         renderExpertAdvice();
         updateExportLinks();
+
+        if (currentDevWeek === null) {
+          loadDevelopment();
+        }
       } catch (err) {
         console.error('Fetch status error:', err);
       }
@@ -2029,6 +2244,329 @@
 
     function formatDateShort(dt) {
       return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    }
+
+    // =========================================================================
+    // 3. РАЗВИТИЕ МАЛЫША И СКАЧКИ РОСТА (WONDER WEEKS)
+    // =========================================================================
+    let currentDevWeek = null;
+    let actualDevWeek = null;
+    let devDataCache = null;
+
+    async function loadDevelopment(week = null) {
+      if (!appStatus?.family?.id) return;
+      try {
+        const url = `/api/development?family_id=${appStatus.family.id}${week ? `&week=${week}` : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Ошибка загрузки развития');
+        const data = await res.json();
+        devDataCache = data;
+
+        actualDevWeek = data.actual_week;
+        currentDevWeek = data.selected_week;
+
+        // Заголовки недели
+        document.getElementById('devWeekLabel').innerText = `${data.selected_week}-я неделя`;
+        document.getElementById('devDaysRangeBadge').innerText = data.week_days_range;
+        document.getElementById('devBabyAgeText').innerText = `Возраст: ${appStatus?.baby?.age_text || '2 мес 10 дн'}`;
+
+        const currentWeekBtn = document.getElementById('devCurrentWeekBtn');
+        if (currentWeekBtn) {
+          if (data.is_actual_week) {
+            currentWeekBtn.classList.add('hidden');
+          } else {
+            currentWeekBtn.classList.remove('hidden');
+          }
+        }
+
+        // Скачок роста
+        const spurt = data.growth_spurt;
+        const badgeEl = document.getElementById('devSpurtBadge');
+        badgeEl.className = `text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${spurt.badge_class}`;
+        badgeEl.innerText = spurt.is_active ? '⚡️ Активный скачок' : '🟢 Стабильно';
+
+        document.getElementById('devSpurtTitle').innerText = spurt.status_label;
+        document.getElementById('devSpurtCountdown').innerText = spurt.countdown_text;
+        document.getElementById('devSpurtDesc').innerText = spurt.description;
+
+        // Симптомы скачка
+        const symptomsList = document.getElementById('devSpurtSymptoms');
+        symptomsList.innerHTML = '';
+        if (spurt.symptoms && spurt.symptoms.length > 0) {
+          spurt.symptoms.forEach(sym => {
+            const li = document.createElement('li');
+            li.innerText = sym;
+            symptomsList.appendChild(li);
+          });
+        }
+
+        // Совет родителям
+        document.getElementById('devSpurtAdvice').innerText = spurt.parent_advice;
+
+        // Фокус недели
+        document.getElementById('devWeekFocus').innerText = data.week_focus;
+
+        // Список активностей и упражнений с таймингами
+        renderExercisesList(data.exercises);
+      } catch (e) {
+        console.error('Error loading development info:', e);
+      }
+    }
+
+    function renderExercisesList(exercises) {
+      const container = document.getElementById('devExercisesContainer');
+      container.innerHTML = '';
+      if (!exercises || exercises.length === 0) {
+        container.innerHTML = '<div class="text-white/40 text-[13px] p-4 text-center">Активности загружаются...</div>';
+        return;
+      }
+
+      // Сохраненные чекбоксы на сегодня
+      const todayKey = `checked_dev_${new Date().toISOString().split('T')[0]}`;
+      let checkedItems = {};
+      try {
+        checkedItems = JSON.parse(localStorage.getItem(todayKey) || '{}');
+      } catch (e) {}
+
+      exercises.forEach((ex) => {
+        const card = document.createElement('div');
+        card.className = 'apple-card p-4 space-y-3';
+        const isChecked = !!checkedItems[ex.id];
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-white/80">
+                <i class="ph ${ex.icon || 'ph-activity'} text-xl text-blue-400"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-[15px] text-white tracking-tight ${isChecked ? 'line-through opacity-60' : ''}">${ex.name}</h4>
+                <div class="text-[11px] text-white/40 flex items-center gap-2 mt-0.5">
+                  <span class="text-blue-300 font-semibold">⏱ ${ex.duration}</span>
+                  <span>•</span>
+                  <span>${ex.frequency}</span>
+                </div>
+              </div>
+            </div>
+            <button onclick="toggleExerciseDone('${ex.id}')" class="w-7 h-7 rounded-full border ${isChecked ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-white/20 text-transparent hover:border-white/40'} flex items-center justify-center transition active:scale-90">
+              <i class="ph ph-check font-bold text-xs ${isChecked ? '' : 'hidden'}"></i>
+            </button>
+          </div>
+
+          ${ex.timing ? `
+            <div class="text-[12px] text-amber-300/85 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl font-normal">
+              ⏰ ${ex.timing}
+            </div>
+          ` : ''}
+
+          <div class="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.06] space-y-1">
+            <div class="text-[10px] uppercase font-semibold text-white/40 tracking-wider">Подробная методика:</div>
+            <div class="text-[12.5px] text-white/75 leading-relaxed whitespace-pre-line font-normal">${ex.technique}</div>
+          </div>
+
+          <div class="text-[11.5px] text-emerald-300/80 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl flex items-start gap-1.5 font-normal">
+            <i class="ph ph-heart text-emerald-400 text-sm mt-0.5"></i>
+            <span><b>Польза:</b> ${ex.benefit}</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleExerciseDone(exId) {
+      haptic('medium');
+      const todayKey = `checked_dev_${new Date().toISOString().split('T')[0]}`;
+      let checkedItems = {};
+      try {
+        checkedItems = JSON.parse(localStorage.getItem(todayKey) || '{}');
+      } catch (e) {}
+
+      checkedItems[exId] = !checkedItems[exId];
+      try {
+        localStorage.setItem(todayKey, JSON.stringify(checkedItems));
+      } catch (e) {}
+
+      if (devDataCache?.exercises) {
+        renderExercisesList(devDataCache.exercises);
+      }
+    }
+
+    function changeDevWeek(delta) {
+      haptic('light');
+      const targetW = Math.max(1, Math.min(52, (currentDevWeek || 10) + delta));
+      currentDevWeek = targetW;
+      loadDevelopment(currentDevWeek);
+    }
+
+    function resetToActualWeek() {
+      haptic('medium');
+      currentDevWeek = actualDevWeek;
+      loadDevelopment(actualDevWeek);
+    }
+
+    // Встроенный секундомер выкладывания на животик
+    let tummyTimeLeft = 180;
+    let tummyTimerInterval = null;
+
+    function updateTummyTimerDisplay() {
+      const m = String(Math.floor(tummyTimeLeft / 60)).padStart(2, '0');
+      const s = String(tummyTimeLeft % 60).padStart(2, '0');
+      const el = document.getElementById('tummyTimerDisplay');
+      if (el) el.innerText = `${m}:${s}`;
+    }
+
+    function toggleTummyTimer() {
+      haptic('medium');
+      const btn = document.getElementById('tummyTimerStartBtn');
+      if (tummyTimerInterval) {
+        clearInterval(tummyTimerInterval);
+        tummyTimerInterval = null;
+        if (btn) btn.innerText = 'Продолжить';
+      } else {
+        if (tummyTimeLeft <= 0) tummyTimeLeft = 180;
+        if (btn) btn.innerText = 'Пауза';
+        tummyTimerInterval = setInterval(() => {
+          tummyTimeLeft--;
+          updateTummyTimerDisplay();
+          if (tummyTimeLeft <= 0) {
+            clearInterval(tummyTimerInterval);
+            tummyTimerInterval = null;
+            haptic('success');
+            if (btn) btn.innerText = 'Завершено! Отличная работа 🎉';
+          }
+        }, 1000);
+      }
+    }
+
+    function resetTummyTimer(sec) {
+      haptic('light');
+      if (tummyTimerInterval) {
+        clearInterval(tummyTimerInterval);
+        tummyTimerInterval = null;
+      }
+      tummyTimeLeft = sec;
+      updateTummyTimerDisplay();
+      const btn = document.getElementById('tummyTimerStartBtn');
+      if (btn) btn.innerText = 'Старт таймера';
+    }
+
+
+    // =========================================================================
+    // 4. МИНИ-АДМИНКА ДОСТУПА (ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА 374188835)
+    // =========================================================================
+    async function loadAdminWhitelist() {
+      try {
+        const res = await fetch(`/api/admin/whitelist?admin_id=${currentUserId}`);
+        if (!res.ok) return;
+        const users = await res.json();
+        renderAdminWhitelist(users);
+      } catch (e) {
+        console.error('Error loading admin whitelist:', e);
+      }
+    }
+
+    function renderAdminWhitelist(users) {
+      const container = document.getElementById('adminWhitelistContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      if (!users || users.length === 0) {
+        container.innerHTML = '<span class="text-white/40 text-[12px]">Список пуст</span>';
+        return;
+      }
+
+      users.forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08]';
+        const isSuperadmin = (u.telegram_id === 374188835);
+
+        row.innerHTML = `
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white text-[13px]">${u.full_name || 'Пользователь'}</span>
+              ${u.username ? `<span class="text-[11px] text-blue-400">@${u.username}</span>` : ''}
+              ${isSuperadmin ? `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">Владелец</span>` : ''}
+            </div>
+            <div class="text-[11px] text-white/40 font-mono">
+              ID: ${u.telegram_id} ${u.notes ? `• ${u.notes}` : ''}
+            </div>
+          </div>
+          <div>
+            ${!isSuperadmin ? `
+              <button onclick="adminDeleteUserAction(${u.telegram_id})" class="px-2.5 py-1 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-300 text-[11px] font-semibold border border-red-500/25 active:scale-95 transition">
+                Удалить
+              </button>
+            ` : ''}
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    async function adminAddUserAction() {
+      const idInput = document.getElementById('adminNewUserId');
+      const nameInput = document.getElementById('adminNewUserName');
+      const noteInput = document.getElementById('adminNewUserNote');
+
+      const targetId = parseInt(idInput.value.trim(), 10);
+      if (!targetId || isNaN(targetId)) {
+        alert('Введите корректный числовой Telegram ID');
+        return;
+      }
+
+      const nameVal = nameInput.value.trim();
+      const noteVal = noteInput.value.trim();
+      haptic('medium');
+
+      try {
+        const res = await fetch('/api/admin/whitelist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: targetId,
+            username: nameVal.startsWith('@') ? nameVal.replace('@', '') : null,
+            full_name: nameVal || `ID ${targetId}`,
+            notes: noteVal || null,
+            admin_id: currentUserId
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || 'Ошибка добавления');
+          return;
+        }
+
+        haptic('success');
+        idInput.value = '';
+        nameInput.value = '';
+        noteInput.value = '';
+        alert(`Пользователь ${targetId} успешно добавлен в белый список!`);
+        await loadAdminWhitelist();
+      } catch (e) {
+        alert('Ошибка при отправке запроса');
+      }
+    }
+
+    async function adminDeleteUserAction(targetId) {
+      if (!confirm(`Закрыть доступ пользователю ID ${targetId}?`)) return;
+      haptic('warning');
+
+      try {
+        const res = await fetch(`/api/admin/whitelist/${targetId}?admin_id=${currentUserId}`, {
+          method: 'DELETE'
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || 'Ошибка удаления');
+          return;
+        }
+
+        haptic('success');
+        await loadAdminWhitelist();
+      } catch (e) {
+        alert('Ошибка удаления пользователя');
+      }
     }
 
     // Startup

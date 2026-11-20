@@ -5,3 +5,5 @@ venv/
 .DS_Store
 .neon
 node_modules/
+.env
+*.db

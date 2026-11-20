@@ -18,6 +18,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 DATABASE_URL_UNPOOLED = os.getenv("DATABASE_URL_UNPOOLED")
 DB_PATH = os.getenv("SQLITE_PATH", "sleep_tracker.db")
 
+# Главный администратор бота (владелец)
+SUPERADMIN_ID = 374188835
+
 _pg_pool = None
 
 def is_postgres() -> bool:
@@ -246,9 +249,33 @@ async def init_db():
             );
             """)
 
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS access_whitelist (
+                telegram_id BIGINT PRIMARY KEY,
+                username VARCHAR(100),
+                full_name VARCHAR(100),
+                added_by BIGINT,
+                notes VARCHAR(255),
+                created_at VARCHAR(50) NOT NULL
+            );
+            """)
+
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_family ON sleep_sessions(family_id);")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_start ON sleep_sessions(start_time);")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_users_family ON users(family_id);")
+
+            # Добавляем суперадмина и маму по умолчанию
+            now_iso = time_utils.get_local_now().isoformat()
+            await conn.execute("""
+            INSERT INTO access_whitelist (telegram_id, username, full_name, added_by, notes, created_at)
+            VALUES (374188835, 'youngyannniii', 'Администратор (Папа)', 374188835, 'Владелец бота', $1)
+            ON CONFLICT (telegram_id) DO NOTHING;
+            """, now_iso)
+            await conn.execute("""
+            INSERT INTO access_whitelist (telegram_id, username, full_name, added_by, notes, created_at)
+            VALUES (991615028, 'Яна', 'Мама Севы', 374188835, 'Мама Севы', $1)
+            ON CONFLICT (telegram_id) DO NOTHING;
+            """, now_iso)
         finally:
             await conn.close()
 
@@ -298,9 +325,29 @@ async def init_db():
             FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
         );
         """)
+        await db.execute("""
+        CREATE TABLE IF NOT EXISTS access_whitelist (
+            telegram_id INTEGER PRIMARY KEY,
+            username TEXT,
+            full_name TEXT,
+            added_by INTEGER,
+            notes TEXT,
+            created_at TEXT NOT NULL
+        );
+        """)
         await db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_family ON sleep_sessions(family_id);")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_start ON sleep_sessions(start_time);")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_users_family ON users(family_id);")
+
+        now_iso = time_utils.get_local_now().isoformat()
+        await db.execute("""
+        INSERT OR IGNORE INTO access_whitelist (telegram_id, username, full_name, added_by, notes, created_at)
+        VALUES (374188835, 'youngyannniii', 'Администратор (Папа)', 374188835, 'Владелец бота', ?);
+        """, (now_iso,))
+        await db.execute("""
+        INSERT OR IGNORE INTO access_whitelist (telegram_id, username, full_name, added_by, notes, created_at)
+        VALUES (991615028, 'Яна', 'Мама Севы', 374188835, 'Мама Севы', ?);
+        """, (now_iso,))
         await db.commit()
 
 async def get_or_create_user(
@@ -963,3 +1010,102 @@ async def get_all_families_for_reminders() -> List[Dict[str, Any]]:
         async with db.execute("SELECT * FROM families WHERE notifications_enabled = 1") as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
+
+# =====================================================================
+# БЕЛЫЙ СПИСОК И АДМИНИСТРИРОВАНИЕ ДОСТУПА (WHITELIST)
+# =====================================================================
+
+async def is_user_allowed(telegram_id: int) -> bool:
+    """Проверяет, разрешен ли доступ пользователю к боту и трекеру."""
+    # Суперадмин всегда имеет доступ
+    if telegram_id == SUPERADMIN_ID:
+        return True
+
+    if is_postgres():
+        pool = await get_pg_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT telegram_id FROM access_whitelist WHERE telegram_id = $1", telegram_id)
+            return row is not None
+
+    import aiosqlite
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT telegram_id FROM access_whitelist WHERE telegram_id = ?", (telegram_id,)) as cur:
+            row = await cur.fetchone()
+            return row is not None
+
+async def get_whitelist() -> List[Dict[str, Any]]:
+    """Возвращает список всех пользователей с доступом."""
+    if is_postgres():
+        pool = await get_pg_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT * FROM access_whitelist ORDER BY created_at ASC")
+            return [dict(r) for r in rows]
+
+    import aiosqlite
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM access_whitelist ORDER BY created_at ASC") as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+async def add_to_whitelist(
+    telegram_id: int,
+    username: Optional[str] = None,
+    full_name: Optional[str] = None,
+    added_by: int = SUPERADMIN_ID,
+    notes: Optional[str] = None
+) -> Dict[str, Any]:
+    """Добавляет пользователя в белый список доступа."""
+    now_iso = time_utils.get_local_now().isoformat()
+    clean_username = username.lstrip("@").strip() if username else None
+    display_name = full_name.strip() if full_name else (f"@{clean_username}" if clean_username else f"ID {telegram_id}")
+
+    if is_postgres():
+        pool = await get_pg_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO access_whitelist (telegram_id, username, full_name, added_by, notes, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (telegram_id) DO UPDATE SET
+                    username = EXCLUDED.username,
+                    full_name = EXCLUDED.full_name,
+                    notes = EXCLUDED.notes
+                """,
+                telegram_id, clean_username, display_name, added_by, notes, now_iso
+            )
+            row = await conn.fetchrow("SELECT * FROM access_whitelist WHERE telegram_id = $1", telegram_id)
+            return dict(row)
+
+    import aiosqlite
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute(
+            """
+            INSERT OR REPLACE INTO access_whitelist (telegram_id, username, full_name, added_by, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (telegram_id, clean_username, display_name, added_by, notes, now_iso)
+        )
+        await db.commit()
+        async with db.execute("SELECT * FROM access_whitelist WHERE telegram_id = ?", (telegram_id,)) as cur:
+            row = await cur.fetchone()
+            return dict(row)
+
+async def remove_from_whitelist(telegram_id: int) -> bool:
+    """Удаляет пользователя из белого списка (суперадмина удалить нельзя)."""
+    if telegram_id == SUPERADMIN_ID:
+        return False
+
+    if is_postgres():
+        pool = await get_pg_pool()
+        async with pool.acquire() as conn:
+            res = await conn.execute("DELETE FROM access_whitelist WHERE telegram_id = $1", telegram_id)
+            count = int(res.split(" ")[-1]) if " " in res else 0
+            return count > 0
+
+    import aiosqlite
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("DELETE FROM access_whitelist WHERE telegram_id = ?", (telegram_id,))
+        await db.commit()
+        return cursor.rowcount > 0
