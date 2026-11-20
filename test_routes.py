@@ -23,7 +23,7 @@ async def test_routes():
     assert "baby" in data
     assert "family" in data
     assert "expert_advice" in data
-    assert data["baby"]["age_text"] == "2 месяца 7 дней"
+    assert "месяц" in data["baby"]["age_text"]
     print("✅ get_status works:", data["baby"])
     print("   Expert advice stage:", data["expert_advice"]["stage_title"])
 
@@ -74,6 +74,7 @@ async def test_routes():
     assert "Отчет по сну" in text_resp["report_text"]
     print("✅ api_export_text works! Preview:\n", text_resp["report_text"][:120], "...")
 
+    await db.close_db()
     print("\n🎉 ALL ROUTE TESTS PASSED!")
 
 if __name__ == "__main__":

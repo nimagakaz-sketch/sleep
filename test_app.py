@@ -38,8 +38,10 @@ async def run_tests():
     print(f"   ✅ Both parents successfully linked to family {code}!")
 
     print("5. Testing sleep tracking (Dad puts baby to bed, Mom marks wake up)...")
-    # Sleep starts 35 mins ago, ends 5 mins ago (within today)
-    sleep_start = (datetime.now() - timedelta(minutes=35)).isoformat()
+    # Daytime nap scheduled at 14:00 - 14:30 today
+    t = date.today()
+    base_time = datetime(t.year, t.month, t.day, 14, 30, 0)
+    sleep_start = (base_time - timedelta(minutes=30)).isoformat()
     session = await db.start_sleep(family["id"], user1_id, start_time_iso=sleep_start, is_night=0)
     assert session["family_id"] == family["id"]
 
@@ -48,7 +50,7 @@ async def run_tests():
     assert active["id"] == session["id"]
 
     # Mom marks wake up
-    wake_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+    wake_time = base_time.isoformat()
     ended = await db.stop_sleep(family["id"], user2_id, end_time_iso=wake_time)
     assert ended["end_time"] == wake_time
     print(f"   ✅ Sleep recorded: duration {ended['start_time']} -> {ended['end_time']}")
@@ -69,6 +71,7 @@ async def run_tests():
     assert summary["total_sleep_min"] == 30 # 35m - 5m = 30m
     print("   ✅ Daily summary verified!")
 
+    await db.close_db()
     print("\n🎉 ALL TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":

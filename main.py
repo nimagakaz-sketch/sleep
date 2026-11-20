@@ -616,10 +616,20 @@ async def cmd_wake(event: types.Message | types.CallbackQuery):
 
 @dp.message(Command("backup"))
 async def cmd_backup(message: types.Message):
-    """Отправляет резервную копию базы данных SQLite прямо в чат Telegram."""
-    if os.path.exists("sleep_tracker.db"):
-        now_str = time_utils.get_local_now().strftime("%Y%m%d_%H%M")
-        doc = FSInputFile("sleep_tracker.db", filename=f"sleep_tracker_backup_{now_str}.db")
+    """Отправляет резервную копию базы данных прямо в чат Telegram."""
+    now_str = time_utils.get_local_now().strftime("%Y%m%d_%H%M")
+    backup_file = f"sleep_tracker_backup_{now_str}.db"
+    try:
+        if db.is_postgres():
+            await db.export_neon_to_sqlite(backup_file)
+        elif os.path.exists("sleep_tracker.db"):
+            import shutil
+            shutil.copyfile("sleep_tracker.db", backup_file)
+        else:
+            await message.answer("⚠️ Файл базы данных пока пуст.")
+            return
+
+        doc = FSInputFile(backup_file, filename=backup_file)
         await message.answer_document(
             doc,
             caption="💾 <b>Резервная копия базы данных трекера сна.</b>\n"
@@ -627,19 +637,31 @@ async def cmd_backup(message: types.Message):
                     "вы можете просто отправить этот файл боту для мгновенного восстановления.",
             parse_mode=ParseMode.HTML
         )
-    else:
-        await message.answer("⚠️ Файл базы данных пока не существует.")
+    finally:
+        if os.path.exists(backup_file):
+            try:
+                os.remove(backup_file)
+            except Exception:
+                pass
 
 @dp.message(F.document)
 async def handle_document_restore(message: types.Message):
-    """Позволяет восстановить базу данных из отправленного .db файла."""
+    """Позволяет восстановить базу данных из отправленного .db файла (сохраняет в Neon PostgreSQL)."""
     doc = message.document
     if doc.file_name and doc.file_name.endswith(".db"):
         try:
             file_info = await bot.get_file(doc.file_id)
-            await bot.download_file(file_info.file_path, destination="sleep_tracker.db")
+            tmp_db = f"temp_restore_{message.from_user.id}.db"
+            await bot.download_file(file_info.file_path, destination=tmp_db)
+            if db.is_postgres():
+                await db.migrate_sqlite_to_postgres(tmp_db)
+            else:
+                import shutil
+                shutil.copyfile(tmp_db, "sleep_tracker.db")
+            if os.path.exists(tmp_db):
+                os.remove(tmp_db)
             await message.answer(
-                "✅ <b>База данных успешно восстановлена!</b>\nВсе записи снов снова активны.",
+                "✅ <b>База данных успешно восстановлена и сохранена в Neon!</b>\nВсе записи снов снова активны.",
                 parse_mode=ParseMode.HTML
             )
         except Exception as e:
@@ -770,6 +792,12 @@ async def on_startup():
         # Запуск фонового планировщика уведомлений
         asyncio.create_task(sleep_reminder_worker())
         logger.info("Sleep reminder worker started.")
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Корректное закрытие пула соединений базы данных при завершении приложения."""
+    await db.close_db()
+    logger.info("Database connections closed.")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=True)
