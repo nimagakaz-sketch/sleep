@@ -11,6 +11,9 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 from urllib.parse import urlparse
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import time_utils
 
 # Переменные окружения Neon PostgreSQL
@@ -179,6 +182,16 @@ async def export_neon_to_sqlite(target_path: str = "sleep_tracker_backup.db") ->
         created_at TEXT NOT NULL
     );
     """)
+    s_cur.execute("""
+    CREATE TABLE IF NOT EXISTS access_whitelist (
+        telegram_id INTEGER PRIMARY KEY,
+        username TEXT,
+        full_name TEXT,
+        added_by INTEGER,
+        notes TEXT,
+        created_at TEXT NOT NULL
+    );
+    """)
     pool = await get_pg_pool()
     async with pool.acquire() as pg:
         fams = await pg.fetch("SELECT * FROM families")
@@ -198,6 +211,12 @@ async def export_neon_to_sqlite(target_path: str = "sleep_tracker_backup.db") ->
             s_cur.execute(
                 "INSERT INTO sleep_sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (s["id"], s["family_id"], s["start_time"], s["end_time"], s["is_night"], s["started_by_user_id"], s["ended_by_user_id"], s["notes"], s["created_at"])
+            )
+        whitelist = await pg.fetch("SELECT * FROM access_whitelist")
+        for w in whitelist:
+            s_cur.execute(
+                "INSERT INTO access_whitelist VALUES (?, ?, ?, ?, ?, ?)",
+                (w["telegram_id"], w["username"], w["full_name"], w["added_by"], w["notes"], w["created_at"])
             )
     s_conn.commit()
     s_conn.close()
