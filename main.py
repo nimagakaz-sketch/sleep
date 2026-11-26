@@ -21,7 +21,7 @@ import uvicorn
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, FSInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, FSInputFile, MenuButtonWebApp
 from aiogram.enums import ParseMode
 
 import database as db
@@ -992,6 +992,16 @@ async def on_startup():
         return
 
     if bot:
+        # Автоматическая настройка кнопки меню внизу чата Telegram
+        if WEBAPP_URL:
+            try:
+                await bot.set_chat_menu_button(
+                    menu_button=MenuButtonWebApp(text="🌙 Трекер сна", web_app=WebAppInfo(url=WEBAPP_URL))
+                )
+                logger.info(f"Chat menu button automatically configured: {WEBAPP_URL}")
+            except Exception as e:
+                logger.warning(f"Failed to set chat menu button: {e}")
+
         # Запуск polling бота в фоновом task
         asyncio.create_task(start_bot_polling())
         # Запуск фонового планировщика уведомлений
