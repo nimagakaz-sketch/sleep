@@ -963,11 +963,33 @@ async def start_bot_polling():
             logger.warning(f"Telegram bot polling warning: {e}. Retrying in 10s...")
             await asyncio.sleep(10)
 
+IS_RENDER = os.getenv("RENDER") == "true" or os.getenv("RENDER_SERVICE_ID") is not None
+DEPLOY_SECRET = os.getenv("DEPLOY_SECRET", "aeza_seva_deploy_secret_2026")
+
+@app.api_route("/api/deploy-webhook", methods=["GET", "POST"])
+async def deploy_webhook(secret: Optional[str] = Query(None)):
+    """Эндпоинт для автодеплоя при push в репозиторий."""
+    if secret != DEPLOY_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid deploy secret")
+    
+    logger.info("Auto-deploy webhook triggered! Pulling latest code and restarting...")
+    
+    async def _async_deploy():
+        await asyncio.sleep(1)
+        os.system("cd /opt/baby_sleep_tracker && git pull origin main && venv/bin/pip install -r requirements.txt && systemctl restart seva-bot.service &")
+        
+    asyncio.create_task(_async_deploy())
+    return {"status": "ok", "message": "Deploy initiated"}
+
 @app.on_event("startup")
 async def on_startup():
     """Инициализация базы данных и запуск Telegram бота."""
     await db.init_db()
     logger.info("Database initialized successfully.")
+
+    if IS_RENDER:
+        logger.info("Running on Render environment: Telegram polling disabled in favor of dedicated VPS.")
+        return
 
     if bot:
         # Запуск polling бота в фоновом task
