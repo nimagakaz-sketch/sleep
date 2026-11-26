@@ -983,4 +983,5 @@ async def on_shutdown():
     logger.info("Database connections closed.")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=True)
+    reload_mode = os.getenv("RELOAD", "false").lower() == "true"
+    uvicorn.run("main:app", host=HOST, port=PORT, reload=reload_mode)
